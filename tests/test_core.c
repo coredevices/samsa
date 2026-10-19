@@ -29,6 +29,10 @@ int main(void) {
     EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_MEMFAULT);
     EQ(samsa_run(&f.c, 0, &n), SAMSA_STOP_BUDGET);
     EQ(n, 0);
+#if SAMSA_CACHE_ENTRIES
+    CHECK(offsetof(SamsaCpu, _cache) < 128);
+#else
     CHECK(sizeof(SamsaCpu) < 128);
+#endif
     return 0;
 }

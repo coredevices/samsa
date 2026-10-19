@@ -8,6 +8,13 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#ifndef SAMSA_CACHE_ENTRIES
+#define SAMSA_CACHE_ENTRIES 0
+#endif
+#if SAMSA_CACHE_ENTRIES < 0 || SAMSA_CACHE_ENTRIES > 1024 ||                                       \
+    (SAMSA_CACHE_ENTRIES && (SAMSA_CACHE_ENTRIES & (SAMSA_CACHE_ENTRIES - 1)))
+#error "SAMSA_CACHE_ENTRIES must be zero or a power of two up to 1024"
+#endif
 #define SAMSA_R 1u
 #define SAMSA_W 2u
 #define SAMSA_X 4u
@@ -46,6 +53,16 @@ typedef struct SamsaCpu {
     uint8_t itstate, stop_info;
     /* Internal state. Use xPSR accessors for flags. */
     uint8_t _flags, _exclusive_size, _stop, _calling;
+#if SAMSA_CACHE_ENTRIES
+    struct {
+        struct {
+            uint32_t tag;
+            uint16_t first, second;
+            uint8_t op;
+        } code[SAMSA_CACHE_ENTRIES];
+        uint16_t region[3];
+    } _cache;
+#endif
 } SamsaCpu;
 /* Reset clears the entire struct, including configuration pointers. */
 void samsa_reset(SamsaCpu *cpu);

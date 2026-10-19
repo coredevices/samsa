@@ -400,8 +400,36 @@ static bool multiply(SamsaCpu *c, uint16_t h, uint16_t l) {
     put(c, d, (uint32_t)(product >> 32));
     return true;
 }
-bool decode32(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
-    if ((h & 0xfe00u) == 0xea00u) {
+enum {
+    T32_SHIFTED,
+    T32_CONTROL,
+    T32_PLAIN,
+    T32_MODIFIED,
+    T32_MULTIPLE,
+    T32_DUAL,
+    T32_SINGLE,
+    T32_REGISTER,
+    T32_MULTIPLY,
+    T32_UNDEFINED,
+};
+uint8_t classify32(uint16_t h, uint16_t l) {
+    if ((h & 0xfe00u) == 0xea00u)
+        return T32_SHIFTED;
+    if ((h & 0xf800u) == 0xf000u)
+        return l & 0x8000u ? T32_CONTROL : h & 0x200u ? T32_PLAIN : T32_MODIFIED;
+    if ((h & 0xfe40u) == 0xe800u)
+        return T32_MULTIPLE;
+    if ((h & 0xfe40u) == 0xe840u)
+        return T32_DUAL;
+    if ((h & 0xfe00u) == 0xf800u)
+        return T32_SINGLE;
+    if ((h & 0xff00u) == 0xfa00u)
+        return T32_REGISTER;
+    return (h & 0xff00u) == 0xfb00u ? T32_MULTIPLY : T32_UNDEFINED;
+}
+bool execute32(SamsaCpu *c, unsigned op, uint16_t h, uint16_t l, uint32_t pc) {
+    switch (op) {
+    case T32_SHIFTED: {
         if (l & 0x8000u)
             return undef(c);
         unsigned amount = (l >> 12 & 7u) * 4u + (l >> 6 & 3u), type = l >> 4 & 3u;
@@ -417,11 +445,11 @@ bool decode32(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
         uint32_t b = shift(c->r[m], type, amount, &cy);
         return dp(c, h >> 5 & 15u, h & 15u, l >> 8 & 15u, b, cy, (h & 16u) != 0, pc);
     }
-    if ((h & 0xf800u) == 0xf000u) {
-        if (l & 0x8000u)
-            return control(c, h, l, pc);
-        if (h & 0x200u)
-            return plain(c, h, l, pc);
+    case T32_CONTROL:
+        return control(c, h, l, pc);
+    case T32_PLAIN:
+        return plain(c, h, l, pc);
+    case T32_MODIFIED: {
         unsigned imm = (h >> 10 & 1u) << 11 | (l >> 12 & 7u) << 8 | (l & 255u),
                  cy = (c->_flags & C) != 0;
         if ((imm & 0xc00u) == 0 && (imm & 0x300u) && !(imm & 255u))
@@ -429,7 +457,7 @@ bool decode32(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
         uint32_t b = imm_expand(imm, &cy);
         return dp(c, h >> 5 & 15u, h & 15u, l >> 8 & 15u, b, cy, (h & 16u) != 0, pc);
     }
-    if ((h & 0xfe40u) == 0xe800u) {
+    case T32_MULTIPLE: {
         unsigned n = h & 15u, mode = h >> 7 & 3u;
         bool load = (h & 16u) != 0, wb = (h & 32u) != 0;
         if ((mode != 1 && mode != 2) || (l & 0x2000u) || (!load && (l & 0x8000u)) ||
@@ -442,13 +470,19 @@ bool decode32(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
             return undef(c);
         return multiple(c, n, l, load, mode == 2, wb);
     }
-    if ((h & 0xfe40u) == 0xe840u)
+    case T32_DUAL:
         return dual(c, h, l, pc);
-    if ((h & 0xfe00u) == 0xf800u)
+    case T32_SINGLE:
         return single(c, h, l, pc);
-    if ((h & 0xff00u) == 0xfa00u)
+    case T32_REGISTER:
         return data_reg(c, h, l);
-    if ((h & 0xff00u) == 0xfb00u)
+    case T32_MULTIPLY:
         return multiply(c, h, l);
-    return undef(c);
+    default:
+        return undef(c);
+    }
+}
+
+bool decode32(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
+    return execute32(c, classify32(h, l), h, l, pc);
 }

@@ -21,7 +21,9 @@ ctest --test-dir build --output-on-failure
 ```
 
 Use `-DSAMSA_SANITIZE=ON` for ASan/UBSan, `-DSAMSA_BUILD_TESTS=OFF` for embedding,
-and `-DSAMSA_BUILD_BENCH=ON` for the compiled-program benchmark. Link target
+and `-DSAMSA_BUILD_BENCH=ON` for the compiled-program benchmark.
+`-DSAMSA_CACHE_ENTRIES=64` enables an optional per-CPU predecode/region cache;
+the default is zero. Use the same definition in the library and embedder. Link target
 `samsa`, include `<samsa/samsa.h>`. Installation exports `samsa::samsa`.
 No Python or ARM tools are needed to replay checked-in test data.
 

@@ -125,4 +125,4 @@ from table forms to executed oracle cases.
 - [x] Oracle sampler expanded to memory/control/data-processing classes, including full-state replay.
 - [x] Explicit classified random UNDEF oracle comparisons (A5 table holes only).
 - [x] Local macOS/Linux GCC/Clang validation available; remote CI awaits a published repository.
-- [ ] Performance/cache work and final repeated matrix validation.
+- [x] Optional predecode/region cache, coherence/invalidation tests, and repeated host/cross matrix.

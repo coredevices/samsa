@@ -31,6 +31,7 @@ int main(void) {
     c.num_regions = 1;
     c.r[13] = 0x11000;
     load(memory, 65536, "suite");
+    samsa_invalidate(&c, 0x1000, 65536);
     for (unsigned seed = 0; seed < 32; ++seed) {
         uint32_t expected[39] = {0}, args[] = {0xe000, seed}, ret;
         program(expected, seed);
@@ -43,6 +44,7 @@ int main(void) {
     }
     memset(memory, 0, 65536);
     load(memory, 65536, "hooks");
+    samsa_invalidate(&c, 0x1000, 65536);
     const SamsaHook hook = {0x3000, 0x3002};
     c.hooks = &hook;
     c.num_hooks = 1;

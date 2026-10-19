@@ -39,11 +39,76 @@ static uint32_t reverse(uint32_t x, unsigned op) {
         return r;
     return sx(r & 0xffffu, 16);
 }
-bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
+enum {
+    T16_SHIFT,
+    T16_ADD3,
+    T16_IMM8,
+    T16_ALU,
+    T16_SPECIAL,
+    T16_LITERAL,
+    T16_REGMEM,
+    T16_IMMEM,
+    T16_SPMEM,
+    T16_ADR,
+    T16_SPADJ,
+    T16_CB,
+    T16_EXTEND,
+    T16_STACK,
+    T16_REVERSE,
+    T16_BKPT,
+    T16_IT,
+    T16_MULTIPLE,
+    T16_COND,
+    T16_BRANCH,
+    T16_UNDEFINED,
+};
+uint8_t classify16(uint16_t h) {
+    if (h < 0x1800u)
+        return T16_SHIFT;
+    if (h < 0x2000u)
+        return T16_ADD3;
+    if (h < 0x4000u)
+        return T16_IMM8;
+    if ((h & 0xfc00u) == 0x4000u)
+        return T16_ALU;
+    if ((h & 0xfc00u) == 0x4400u)
+        return T16_SPECIAL;
+    if ((h & 0xf800u) == 0x4800u)
+        return T16_LITERAL;
+    if ((h & 0xf000u) == 0x5000u)
+        return T16_REGMEM;
+    if ((h & 0xe000u) == 0x6000u || (h & 0xf000u) == 0x8000u)
+        return T16_IMMEM;
+    if ((h & 0xf000u) == 0x9000u)
+        return T16_SPMEM;
+    if ((h & 0xf000u) == 0xa000u)
+        return T16_ADR;
+    if ((h & 0xff00u) == 0xb000u)
+        return T16_SPADJ;
+    if ((h & 0xf500u) == 0xb100u)
+        return T16_CB;
+    if ((h & 0xff00u) == 0xb200u)
+        return T16_EXTEND;
+    if ((h & 0xf600u) == 0xb400u)
+        return T16_STACK;
+    if ((h & 0xff00u) == 0xba00u)
+        return T16_REVERSE;
+    if ((h & 0xff00u) == 0xbe00u)
+        return T16_BKPT;
+    if ((h & 0xff00u) == 0xbf00u)
+        return T16_IT;
+    if ((h & 0xf000u) == 0xc000u)
+        return T16_MULTIPLE;
+    if ((h & 0xf000u) == 0xd000u)
+        return T16_COND;
+    return (h & 0xf800u) == 0xe000u ? T16_BRANCH : T16_UNDEFINED;
+}
+bool execute16(SamsaCpu *c, unsigned op, uint16_t h, uint32_t pc, bool it) {
     unsigned d = h & 7u, n = h >> 3 & 7u, m = h >> 6 & 7u;
     unsigned cy = (c->_flags & C) != 0;
     uint32_t a, b, v, addr;
-    if (h < 0x1800u) {
+    switch (op) {
+    case T16_SHIFT: {
         unsigned type = h >> 11, amount = h >> 6 & 31u;
         if (type && !amount)
             amount = 32;
@@ -53,12 +118,12 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
             nzc(c, v, cy);
         return true;
     }
-    if (h < 0x2000u) {
+    case T16_ADD3: {
         b = h & 0x400u ? m : c->r[m];
         put(c, d, add_c(c, c->r[n], h & 0x200u ? ~b : b, (h >> 9) & 1u, !it));
         return true;
     }
-    if (h < 0x4000u) {
+    case T16_IMM8: {
         d = h >> 8 & 7u;
         b = h & 255u;
         switch (h >> 11 & 3u) {
@@ -79,7 +144,7 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
         }
         return true;
     }
-    if ((h & 0xfc00u) == 0x4000u) {
+    case T16_ALU: {
         a = c->r[d];
         b = c->r[n];
         bool flags = !it;
@@ -135,7 +200,7 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
             nz(c, v);
         return true;
     }
-    if ((h & 0xfc00u) == 0x4400u) {
+    case T16_SPECIAL: {
         d |= h >> 4 & 8u;
         n = h >> 3 & 15u;
         a = reg(c, d, pc);
@@ -164,12 +229,12 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
         put(c, d, v);
         return true;
     }
-    if ((h & 0xf800u) == 0x4800u) {
+    case T16_LITERAL: {
         d = h >> 8 & 7u;
         addr = ((pc + 4u) & ~3u) + (h & 255u) * 4u;
         return mem_read(c, addr, 4, SAMSA_R, &c->r[d]);
     }
-    if ((h & 0xf000u) == 0x5000u) {
+    case T16_REGMEM: {
         unsigned op = h >> 9 & 7u, size = op == 0 || op == 4              ? 4
                                           : op == 1 || op == 5 || op == 7 ? 2
                                                                           : 1;
@@ -181,37 +246,37 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
         put(c, d, op == 3 ? sx(v, 8) : op == 7 ? sx(v, 16) : v);
         return true;
     }
-    if ((h & 0xe000u) == 0x6000u || (h & 0xf000u) == 0x8000u) {
+    case T16_IMMEM: {
         unsigned size = h < 0x8000u ? (h & 0x1000u ? 1 : 4) : 2;
         addr = c->r[n] + (h >> 6 & 31u) * size;
         if (h & 0x800u)
             return mem_read(c, addr, size, SAMSA_R, &c->r[d]);
         return mem_write(c, addr, size, c->r[d]);
     }
-    if ((h & 0xf000u) == 0x9000u) {
+    case T16_SPMEM: {
         d = h >> 8 & 7u;
         addr = c->r[13] + (h & 255u) * 4u;
         if (h & 0x800u)
             return mem_read(c, addr, 4, SAMSA_R, &c->r[d]);
         return mem_write(c, addr, 4, c->r[d]);
     }
-    if ((h & 0xf000u) == 0xa000u) {
+    case T16_ADR: {
         c->r[h >> 8 & 7u] = (h & 0x800u ? c->r[13] : (pc + 4u) & ~3u) + (h & 255u) * 4u;
         return true;
     }
-    if ((h & 0xff00u) == 0xb000u) {
+    case T16_SPADJ: {
         v = (h & 127u) * 4u;
         c->r[13] += h & 128u ? 0u - v : v;
         return true;
     }
-    if ((h & 0xf500u) == 0xb100u) {
+    case T16_CB: {
         if (it)
             return usage(c);
         if ((c->r[d] != 0) == ((h & 0x800u) != 0))
             c->r[15] = pc + 4u + (h >> 3 & 31u) * 2u + (h >> 9 & 1u) * 64u;
         return true;
     }
-    if ((h & 0xff00u) == 0xb200u) {
+    case T16_EXTEND: {
         v = c->r[n];
         switch (h >> 6 & 3u) {
         case 0:
@@ -230,24 +295,24 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
         put(c, d, v);
         return true;
     }
-    if ((h & 0xf600u) == 0xb400u) {
+    case T16_STACK: {
         bool pop = (h & 0x800u) != 0;
         return multiple(c, 13, (h & 255u) | (h & 256u ? (pop ? 0x8000u : 0x4000u) : 0), pop, !pop,
                         true);
     }
-    if ((h & 0xff00u) == 0xba00u) {
+    case T16_REVERSE: {
         unsigned op = h >> 6 & 3u;
         if (op == 2)
             return undef(c);
         put(c, d, reverse(c->r[n], op));
         return true;
     }
-    if ((h & 0xff00u) == 0xbe00u) {
+    case T16_BKPT: {
         c->stop_info = (uint8_t)h;
         c->_stop = SAMSA_STOP_BKPT;
         return false;
     }
-    if ((h & 0xff00u) == 0xbf00u) {
+    case T16_IT: {
         if (!(h & 15u))
             return true;
         if (it || (h >> 4 & 15u) == 15u ||
@@ -256,14 +321,14 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
         c->itstate = (uint8_t)h;
         return true;
     }
-    if ((h & 0xf000u) == 0xc000u) {
+    case T16_MULTIPLE: {
         n = h >> 8 & 7u;
         bool load = (h & 0x800u) != 0;
         if (!load && (h & (1u << n)) && (h & ((1u << n) - 1u)))
             return undef(c);
         return multiple(c, n, h & 255u, load, false, !load || !(h & (1u << n)));
     }
-    if ((h & 0xf000u) == 0xd000u) {
+    case T16_COND: {
         unsigned cond = h >> 8 & 15u;
         if (cond == 15) {
             c->stop_info = (uint8_t)h;
@@ -278,7 +343,13 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
             c->r[15] = pc + 4u + sx((h & 255u) * 2u, 9);
         return true;
     }
-    if ((h & 0xf800u) == 0xe000u)
+    case T16_BRANCH:
         return branch(c, pc + 4u + sx((h & 2047u) << 1, 12), false);
-    return undef(c);
+    default:
+        return undef(c);
+    }
+}
+
+bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
+    return execute16(c, classify16(h), h, pc, it);
 }

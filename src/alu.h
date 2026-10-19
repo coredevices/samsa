@@ -18,11 +18,20 @@ uint32_t add_c(SamsaCpu *c, uint32_t a, uint32_t b, unsigned carry, bool flags);
 void nz(SamsaCpu *c, uint32_t value);
 void nzc(SamsaCpu *c, uint32_t value, unsigned carry);
 bool condition(const SamsaCpu *c, unsigned cond);
+bool mem_fetch(SamsaCpu *c, uint32_t addr, uint32_t *halfword);
 bool mem_read(SamsaCpu *c, uint32_t addr, unsigned size, unsigned perm, uint32_t *v);
 bool mem_write(SamsaCpu *c, uint32_t addr, unsigned size, uint32_t value);
 bool aligned(SamsaCpu *c, uint32_t addr, unsigned alignment);
 bool target_special(const SamsaCpu *c, uint32_t addr);
 bool branch(SamsaCpu *c, uint32_t addr, bool exchange);
+uint8_t classify16(uint16_t h);
+uint8_t classify32(uint16_t h, uint16_t l);
+bool execute16(SamsaCpu *c, unsigned op, uint16_t h, uint32_t pc, bool in_it);
+bool execute32(SamsaCpu *c, unsigned op, uint16_t h, uint16_t l, uint32_t pc);
+#if SAMSA_CACHE_ENTRIES
+bool mem_exec(SamsaCpu *c, uint32_t addr, bool wide);
+void invalidate_code(SamsaCpu *c, uint32_t addr, uint32_t len);
+#endif
 bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool in_it);
 bool decode32(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc);
 bool multiple(SamsaCpu *c, unsigned rn, uint32_t list, bool load, bool db, bool wb);

@@ -95,7 +95,8 @@ byte identity across GCC releases. Initial fixtures use GCC 15.2.1.
 
 Portability checks compile all core sources with `-std=c11 -Os -ffreestanding
 -Wall -Wextra -Werror` for Cortex-M4 Thumb and ARM7TDMI ARM, print size totals,
-and require the Cortex-M4 object text total below 16 KiB. These totals exclude
+and require the Cortex-M4 object text total below 16 KiB, with caching both
+disabled and enabled (64 entries). These totals exclude
 embedder libc/libgcc dependencies and linker overhead. Both builds passed
 locally. Local Linux GCC/Clang container tests and native macOS GCC/Clang tests
 also pass. The configured GitHub Actions workflow has not run remotely.
@@ -111,3 +112,24 @@ build-release/samsa_bench tests/programs/suite.bin
 This runs compiled programs and counts actual guest instructions. Record baseline
 and later optimized results in commit messages. The baseline precedes the optional cache optimization. Compare identical
 compiler, build type, workload and host; sanitizer throughput is not comparable.
+
+The host CI matrix tests cache sizes 0 and 64. Sanitizers and libFuzzer also run
+with 64 entries. Directed cache tests cover host invalidation, overlapping guest
+stores, permissions on both halfwords, mapping changes, collisions, PC zero,
+and independent CPUs. Local sanitizer runs additionally test sizes 1 and 1024.
+When replacing a guest program in host memory, invalidate before reusing a CPU.
+
+For reproducible local Linux checks on another host:
+
+```sh
+docker build -t samsa-ci -f tools/ci/Dockerfile .
+docker run --rm --mount type=bind,src="$PWD",dst=/src,readonly samsa-ci sh -c '
+  cmake -S /src -B /tmp/build -DCMAKE_C_COMPILER=clang -DSAMSA_SANITIZE=ON -DSAMSA_CACHE_ENTRIES=64 &&
+  cmake --build /tmp/build --parallel && ctest --test-dir /tmp/build --output-on-failure
+'
+```
+
+The implementation retains compact eager NZCVQ flags. The measured optimization
+changes instruction dispatch, fetch and region lookup; benchmark commit messages
+record cache sizes and before/after measurements. Cache benefit depends on the
+workload and host, so it is optional.

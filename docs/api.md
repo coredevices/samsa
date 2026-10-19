@@ -106,6 +106,34 @@ slots (including any alignment padding), puts excess words on an 8-byte-aligned
 stack, and preserves the enclosing SP. Return helpers put values in r0/r1 and
 exchange to LR, applying the same INVSTATE checks as guest load-to-PC operations.
 
-There is no decode cache in this version. `samsa_invalidate` is an explicit no-op
-reserved for cache-enabled implementations. Direct changes to region host memory
-are visible at the next fetch.
+## Optional cache
+
+The default `SAMSA_CACHE_ENTRIES=0` keeps the CPU at 120 bytes on 64-bit hosts.
+Set CMake `-DSAMSA_CACHE_ENTRIES=64` to embed a direct-mapped predecode cache
+and one last-region index per access kind in each CPU. Zero disables it; powers
+of two from 1 through 1024 are accepted. Each entry stores the instruction
+halfwords, address tag, width and decoder-family handler index. The cache holds
+no host pointers. A 64-entry CPU occupies 896 bytes on the tested 64-bit host;
+the base state stays below 128 bytes. There is no allocation or global cache.
+
+The definition changes the public struct ABI. CMake propagates it to consumers;
+when building manually, use the same definition for every library and embedder
+translation unit. Reset clears the cache as well as the base CPU state.
+
+Guest stores to executable regions automatically invalidate overlapping
+instructions, including a write to the second halfword of a wide instruction.
+After the host changes executable bytes, call `samsa_invalidate(cpu, addr, len)`
+before execution. Also invalidate after changing a memory map or its host backing
+storage. Passing `(0, UINT32_MAX)` flushes the entire cache and last-region
+indices; a wrapping range also flushes all, and length zero does nothing.
+All CPUs sharing changed code need invalidation independently.
+
+Cached instructions still check current execute permission for their full
+instruction width. Hooks and call-return sentinels are checked before any cache
+or memory lookup. Budgets, IT conditions, diagnostics, and exclusive-monitor
+state are evaluated afresh on each execution.
+
+Automatic coherence tracks guest addresses. If the embedder aliases executable
+host bytes through another region or mutates them in a bus callback, it must
+invalidate the affected executable guest address ranges itself. With caching
+disabled, direct host changes are visible at the next fetch.

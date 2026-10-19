@@ -27,7 +27,10 @@ static inline void init(Fixture *f) {
     f->c.r[15] = 0x1000;
     f->c.r[13] = 0x2000;
 }
-static inline void code(Fixture *f, const uint16_t *p, size_t n) { memcpy(f->mem, p, n * 2); }
+static inline void code(Fixture *f, const uint16_t *p, size_t n) {
+    memcpy(f->mem, p, n * 2);
+    samsa_invalidate(&f->c, 0x1000, (uint32_t)n * 2u);
+}
 #define CODE(f, ...)                                                                               \
     do {                                                                                           \
         const uint16_t p[] = {__VA_ARGS__};                                                        \

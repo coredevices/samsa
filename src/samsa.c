@@ -2,7 +2,11 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "alu.h"
 #include <string.h>
+#if SAMSA_CACHE_ENTRIES
+_Static_assert(offsetof(SamsaCpu, _cache) < 128, "CPU base size budget exceeded");
+#else
 _Static_assert(sizeof(SamsaCpu) < 128, "CPU size budget exceeded");
+#endif
 void samsa_reset(SamsaCpu *c) { memset(c, 0, sizeof(*c)); }
 uint32_t samsa_get_xpsr(const SamsaCpu *c) {
     return (uint32_t)c->_flags << 24 | UINT32_C(0x01000000) | (uint32_t)(c->itstate & 3u) << 25 |
@@ -34,23 +38,62 @@ SamsaStop samsa_run(SamsaCpu *c, uint32_t max, uint32_t *executed) {
     c->_stop = SAMSA_STOP_BUDGET;
     c->stop_info = 0;
     while (count < max) {
-        uint32_t pc = c->r[15], h, l = 0;
+        uint32_t pc = c->r[15], h = 0, l = 0;
         if (target_special(c, pc)) {
             c->_stop = c->_calling && pc == SAMSA_RETURN_PC ? SAMSA_STOP_RETURN : SAMSA_STOP_HOOK;
             break;
         }
         c->fault_pc = pc;
-        if (!aligned(c, pc, 2) || !mem_read(c, pc, 2, SAMSA_X, &h))
+        if (!aligned(c, pc, 2))
+            break;
+#if SAMSA_CACHE_ENTRIES
+        unsigned slot = (pc >> 1) & (SAMSA_CACHE_ENTRIES - 1u);
+        bool hit = c->_cache.code[slot].tag == (pc | 1u);
+        unsigned op;
+        bool wide;
+        if (hit) {
+            wide = (c->_cache.code[slot].op & 128u) != 0;
+            if (!mem_exec(c, pc, wide))
+                break;
+        } else {
+            if (!mem_fetch(c, pc, &h))
+                break;
+            wide = (h >> 11) >= 29u;
+            if (wide && !mem_fetch(c, pc + 2u, &l))
+                break;
+        }
+#else
+        if (!mem_fetch(c, pc, &h))
             break;
         bool wide = (h >> 11) >= 29u;
-        if (wide && !mem_read(c, pc + 2u, 2, SAMSA_X, &l))
+        if (wide && !mem_fetch(c, pc + 2u, &l))
             break;
+#endif
+#if SAMSA_CACHE_ENTRIES
+        if (hit) {
+            h = c->_cache.code[slot].first;
+            l = c->_cache.code[slot].second;
+            op = c->_cache.code[slot].op & 127u;
+        } else {
+            op = wide ? classify32((uint16_t)h, (uint16_t)l) : classify16((uint16_t)h);
+            c->_cache.code[slot].tag = pc | 1u;
+            c->_cache.code[slot].first = (uint16_t)h;
+            c->_cache.code[slot].second = (uint16_t)l;
+            c->_cache.code[slot].op = (uint8_t)(op | (wide ? 128u : 0));
+        }
+#endif
         uint8_t it = c->itstate;
         c->r[15] = pc + (wide ? 4u : 2u);
         bool ok = true;
-        if (!it || condition(c, it >> 4) || (!wide && (h & 0xff00u) == 0xbe00u))
+        if (!it || condition(c, it >> 4) || (!wide && (h & 0xff00u) == 0xbe00u)) {
+#if SAMSA_CACHE_ENTRIES
+            ok = wide ? execute32(c, op, (uint16_t)h, (uint16_t)l, pc)
+                      : execute16(c, op, (uint16_t)h, pc, it != 0);
+#else
             ok = wide ? decode32(c, (uint16_t)h, (uint16_t)l, pc)
                       : decode16(c, (uint16_t)h, pc, it != 0);
+#endif
+        }
         ++count;
         if (it)
             c->itstate = (it & 7u) ? (uint8_t)((it & 0xe0u) | ((it << 1) & 31u)) : 0;
@@ -164,8 +207,35 @@ SamsaStop samsa_call(SamsaCpu *c, uint32_t fn, const uint32_t *args, unsigned na
                      SamsaStopHandler h, void *ctx) {
     return samsa_call_budget(c, fn, args, nargs, ret, h, ctx, 1000000u);
 }
+#if SAMSA_CACHE_ENTRIES
+void invalidate_code(SamsaCpu *c, uint32_t a, uint32_t len) {
+    if (!len)
+        return;
+    if (len >= SAMSA_CACHE_ENTRIES * 2u || a > UINT32_MAX - (len - 1u)) {
+        for (unsigned i = 0; i < SAMSA_CACHE_ENTRIES; ++i)
+            c->_cache.code[i].tag = 0;
+        return;
+    }
+    /* A write may touch either halfword of a cached wide instruction. */
+    unsigned count = ((a & 1u) + len + 1u) / 2u + 1u;
+    uint32_t pc = (a & ~1u) - 2u;
+    while (count--) {
+        unsigned slot = (pc >> 1) & (SAMSA_CACHE_ENTRIES - 1u);
+        if (c->_cache.code[slot].tag == (pc | 1u))
+            c->_cache.code[slot].tag = 0;
+        pc += 2u;
+    }
+}
+#endif
 void samsa_invalidate(SamsaCpu *c, uint32_t a, uint32_t len) {
+#if SAMSA_CACHE_ENTRIES
+    if (len) {
+        invalidate_code(c, a, len);
+        memset(c->_cache.region, 0, sizeof(c->_cache.region));
+    }
+#else
     (void)c;
     (void)a;
     (void)len;
+#endif
 }
