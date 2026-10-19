@@ -57,6 +57,7 @@ jobs:
       - run: ruff check tools && ruff format --check tools
       - run: python tools/gen_vectors.py --producer unicorn
       - run: python tools/gen_arch_vectors.py
+      - run: python tools/gen_arch_vectors.py --suite sequences
       - run: cmake -S . -B build && cmake --build build --parallel && ctest --test-dir build --output-on-failure
       - uses: actions/upload-artifact@v4
         with:
@@ -64,3 +65,4 @@ jobs:
           path: |
             tests/vectors/unicorn.*
             tests/vectors/architecture.*
+            tests/vectors/sequences.*

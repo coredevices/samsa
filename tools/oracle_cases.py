@@ -524,3 +524,93 @@ def catalog():
     for add_to_pc in range(2):
         add(f"16.alu-pc.{add_to_pc}", alu_pc, add_to_pc)
     return result
+
+
+def sequence_dp(rng, flags=None):
+    op = rng.choice([0, 1, 2, 3, 4, 8, 10, 11, 13, 14])
+    case = dp32(op, rng.choice(["reg", "imm"]), "normal", rng)
+    first, second = case.code
+    n, d = rng.randrange(8), rng.randrange(8)
+    first, second = (first & ~15) | n, (second & ~0xF00) | d << 8
+    if first & 0xFE00 == 0xEA00:
+        second = (second & ~15) | rng.randrange(8)
+    if flags is not None:
+        first = (first & ~16) | int(flags) << 4
+    return first, second
+
+
+def sequence_alu(kind, rng):
+    code = []
+    for _ in range(7):
+        if kind == "narrow" or (kind == "mixed" and rng.randrange(2)):
+            code.extend(alu16(rng.randrange(16), rng).code)
+        else:
+            code.extend(sequence_dp(rng, flags=True if kind == "carry" else None))
+    code.extend((0xF3EF, 0x8300))  # mrs r3,APSR observes the final NZCVQ.
+    return Case(tuple(code), steps=8)
+
+
+def sequence_it(mask, rng):
+    cond = rng.randrange(14)
+    slots = 4 - ((mask & -mask).bit_length() - 1)
+    code = [0x4288, 0xBF00 | cond << 4 | mask]  # cmp r0,r1; it...
+    for _ in range(slots):
+        # Explicit S bits and compare/test instructions may change later conditions.
+        if rng.randrange(2):
+            code.extend(sequence_dp(rng, flags=True))
+        else:
+            code.extend(alu16(rng.choice([0, 5, 6, 8, 10, 11]), rng).code)
+    code.extend((0xF3EF, 0x8300))
+    return Case(tuple(code), steps=3 + slots)
+
+
+def sequence_memory(rng):
+    kind, offset = rng.randrange(3), rng.randrange(16)
+    store, load = [(0x6008, 0x680A), (0x8008, 0x880A), (0x7008, 0x780A)][kind]
+    return Case(
+        (
+            0x2000 | rng.randrange(256),  # movs r0,#imm
+            0x3000 | rng.randrange(256),  # adds r0,#imm
+            0x2800 | rng.randrange(256),  # cmp r0,#imm
+            store | offset << 6,
+            load | offset << 6,
+            0x4050,  # eors r0,r2
+            0xF3EF,
+            0x8300,  # mrs r3,APSR
+            0xBF00,
+        ),
+        {1: RAM},
+        steps=8,
+    )
+
+
+def sequence_apsr(rng):
+    return Case(
+        (
+            *sequence_dp(rng, flags=True),
+            0xF381,
+            0x8800,  # msr APSR_nzcvq,r1 overwrites all pending flags.
+            0x4148,  # adcs r0,r1
+            0xF3EF,
+            0x8300,
+            0xF301,
+            rng.randrange(32),  # ssat r0,#sat,r1 preserves NZCV and sets sticky Q.
+            0xF3EF,
+            0x8400,
+            0xF381,
+            0x8800,
+            0xF3EF,
+            0x8500,
+        ),
+        steps=8,
+    )
+
+
+def sequence_catalog():
+    result = [
+        (f"sequence.alu.{kind}", partial(sequence_alu, kind))
+        for kind in ["narrow", "mixed", "carry"]
+    ]
+    result += [(f"sequence.it.{mask}", partial(sequence_it, mask)) for mask in range(1, 16)]
+    result += [("sequence.memory", sequence_memory), ("sequence.apsr", sequence_apsr)]
+    return result

@@ -12,13 +12,13 @@ from collections import Counter
 from pathlib import Path
 
 from gen_vectors import initial
-from oracle_cases import BASE, PC, catalog, memory
+from oracle_cases import BASE, PC, catalog, memory, sequence_catalog
 
 # DDI 0403E.b A7-560 (WFE), A7-562 (YIELD); Samsa treats both as NOP.
 HINT_DISPUTES = {(0xBF10,), (0xBF20,), (0xF3AF, 0x8001), (0xF3AF, 0x8002)}
 
 
-def generate(count, seed, output):
+def generate(count, seed, output, suite="families"):
     import unicorn
     from unicorn import arm_const
 
@@ -35,7 +35,8 @@ def generate(count, seed, output):
         engine.emu_stop()
 
     uc.hook_add(unicorn.UC_HOOK_INTR, interrupt)
-    families, counts = catalog(), Counter()
+    families = sequence_catalog() if suite == "sequences" else catalog()
+    counts = Counter()
     manual_overrides = Counter()
     rng = random.Random(seed)
     data = bytearray(b"SAMSA002" + struct.pack("<IH", count, len(families)))
@@ -125,6 +126,7 @@ def generate(count, seed, output):
         json.dumps(
             {
                 "producer": "unicorn",
+                "suite": suite,
                 "manual_hint_overrides": manual_overrides,
                 "version": unicorn.__version__,
                 "cpu": "Cortex-M3",
@@ -143,13 +145,17 @@ def generate(count, seed, output):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--count", type=int, default=100000)
+    parser.add_argument("--count", type=int)
+    parser.add_argument("--suite", choices=["families", "sequences"], default="families")
     parser.add_argument("--seed", type=lambda value: int(value, 0), default=0x41524D37)
-    parser.add_argument("--output", type=Path, default=Path("tests/vectors/architecture.bin"))
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    if args.count < len(catalog()):
+    sequence = args.suite == "sequences"
+    count = args.count if args.count is not None else 10000 if sequence else 100000
+    output = args.output or Path(f"tests/vectors/{'sequences' if sequence else 'architecture'}.bin")
+    if count < len(sequence_catalog() if sequence else catalog()):
         parser.error("count must cover every family")
-    generate(args.count, args.seed, args.output)
+    generate(count, args.seed, output, args.suite)
 
 
 if __name__ == "__main__":

@@ -11,7 +11,10 @@ full-state records across 301 named encoding families, comparing all registers,
 flags/ITSTATE, and memory in continuous and single-step modes. Exact YIELD/WFE
 oracle limitations are listed in `vectors/disputes.md`, not silently skipped.
 The factory names and counts in `vectors/architecture.json` provide the mapping
-from table forms to executed oracle cases.
+from table forms to executed oracle cases. `vectors/sequences.bin` adds 10,000
+multi-instruction cases across 20 families, including changing IT conditions,
+carry chains and APSR/Q interactions. Both corpora also run with warm caches
+when caching is enabled.
 
 ## A5.2: Thumb-16
 

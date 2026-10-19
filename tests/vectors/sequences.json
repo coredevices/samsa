@@ -1,0 +1,33 @@
+{
+  "producer": "unicorn",
+  "suite": "sequences",
+  "manual_hint_overrides": {},
+  "version": "2.1.4",
+  "cpu": "Cortex-M3",
+  "count": 10000,
+  "seed": 1095912759,
+  "families": {
+    "sequence.alu.narrow": 500,
+    "sequence.alu.mixed": 500,
+    "sequence.alu.carry": 500,
+    "sequence.it.1": 500,
+    "sequence.it.2": 500,
+    "sequence.it.3": 500,
+    "sequence.it.4": 500,
+    "sequence.it.5": 500,
+    "sequence.it.6": 500,
+    "sequence.it.7": 500,
+    "sequence.it.8": 500,
+    "sequence.it.9": 500,
+    "sequence.it.10": 500,
+    "sequence.it.11": 500,
+    "sequence.it.12": 500,
+    "sequence.it.13": 500,
+    "sequence.it.14": 500,
+    "sequence.it.15": 500,
+    "sequence.memory": 500,
+    "sequence.apsr": 500
+  },
+  "sha256": "338122a76c8d627509877df759daa6e09c99f7f6712245dbe6fc7d3bc6ca0287",
+  "normalization": "UDF traps become UNDEF at fault_pc without exception entry."
+}

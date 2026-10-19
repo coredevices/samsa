@@ -50,7 +50,8 @@ No emulator source was used.
 The integer instruction families are implemented and tested with hand-written
 cases, native-versus-guest C programs (including libgcc soft float and four
 nested callbacks), 100,000 Unicorn ALU vectors, 100,000 independent model vectors,
-and 100,000 full-state cases across 301 named encoding families. Four YIELD/WFE
+and 100,000 full-state cases across 301 named encoding families, plus 10,000
+mixed instruction sequences. Four YIELD/WFE
 forms use explicit manual-derived expectations because Unicorn rejects them;
 the metadata counts these separately. The full-state replay compares every
 register and mapped byte, both continuously and across instruction budgets.

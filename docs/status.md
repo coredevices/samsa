@@ -7,14 +7,16 @@
 | 1: skeleton | Budget loop, memory, public API, CMake and initial tests pass |
 | 2: Thumb-16 | A5 family checklist, directed pitfalls and full-state vectors pass |
 | 3: Thumb-32 | Integer families, aliases, reserved/DSP/coprocessor guards pass |
-| 4: oracle | 100,000 Unicorn ALU vectors and 100,000 full-state cases across 301 families; four documented manual hint forms |
+| 4: oracle | 100,000 Unicorn ALU vectors and 100,000 full-state cases across 301 families, plus 10,000 mixed sequences; four documented manual hint forms |
 | 5: embedding | Hooks, stops, bus, AAPCS slots, bounded calls, four callback levels, compiled libgcc soft float pass |
 | 6: portability | Local Linux GCC/Clang and macOS GCC/Clang pass; host sanitizers, ARM cross-compiles and size checks pass |
 | 7: performance | Optional predecode/region cache, guest-store coherence and host invalidation; before/after benchmarks recorded |
 
 Cached and uncached host builds are validated separately. Additional sanitizer
 runs cover the minimum and maximum supported cache sizes. The core retains
-compact eager flags; no lazy flag representation is used.
+compact eager flags. A deferred N/Z prototype passed correctness checks but
+reduced compiled-suite throughput in a same-host comparison, so it was not
+retained; measurements are recorded in the commit message.
 
 Local host validation uses AppleClang 21 and Homebrew GCC 16 on macOS arm64,
 and GCC 13 / Clang 18 in a disposable Ubuntu 24.04 arm64 container. The Dockerfile

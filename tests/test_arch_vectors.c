@@ -16,14 +16,14 @@ static uint32_t number(FILE *f, unsigned bytes) {
         value |= (uint32_t)byte(f) << (i * 8);
     return value;
 }
-int main(void) {
-    FILE *file = fopen(SAMSA_SOURCE_DIR "/tests/vectors/architecture.bin", "rb");
+static void replay(const char *path, uint32_t minimum) {
+    FILE *file = fopen(path, "rb");
     CHECK(file);
     char magic[8];
     EQ(fread(magic, 1, 8, file), 8);
     CHECK(!memcmp(magic, "SAMSA002", 8));
     uint32_t count = number(file, 4), families = number(file, 2);
-    CHECK(count >= 100000 && count >= families);
+    CHECK(count >= minimum && count >= families);
     CHECK(families < 512);
     char names[512][100];
     unsigned hits[512] = {0};
@@ -81,8 +81,16 @@ int main(void) {
         SamsaCpu saved = f.c;
         uint8_t saved_memory[4096];
         memcpy(saved_memory, f.mem, 4096);
-        for (unsigned split = 0; split < 2; ++split) {
+        for (unsigned mode = 0; mode < (SAMSA_CACHE_ENTRIES ? 4u : 2u); ++mode) {
+#if SAMSA_CACHE_ENTRIES
+            SamsaCpu prior = f.c;
+#endif
             f.c = saved;
+#if SAMSA_CACHE_ENTRIES
+            if (mode >= 2)
+                f.c._cache = prior._cache;
+#endif
+            bool split = (mode & 1u) != 0;
             memcpy(f.mem, saved_memory, 4096);
             SamsaStop actual = SAMSA_STOP_BUDGET;
             for (unsigned step = 0; step < (split ? steps : 1u); ++step) {
@@ -95,8 +103,8 @@ int main(void) {
                         memcmp(expected, f.c.r, sizeof(expected)) ||
                         memcmp(expected_memory, f.mem, 4096);
             if (fail) {
-                fprintf(stderr, "vector %u %s (split %u): stop %u/%u xpsr %08x/%08x\n", index,
-                        names[family], split, actual, stop, samsa_get_xpsr(&f.c), xpsr);
+                fprintf(stderr, "vector %u %s (mode %u): stop %u/%u xpsr %08x/%08x\n", index,
+                        names[family], mode, actual, stop, samsa_get_xpsr(&f.c), xpsr);
                 fprintf(stderr, " code:");
                 for (unsigned i = 0; i < halfwords; ++i)
                     fprintf(stderr, " %02x%02x", f.mem[0x101 + 2 * i], f.mem[0x100 + 2 * i]);
@@ -110,7 +118,7 @@ int main(void) {
                                 expected_memory[i]);
                         break;
                     }
-                return 1;
+                exit(1);
             }
         }
     }
@@ -118,5 +126,17 @@ int main(void) {
         CHECK(hits[i]);
     EQ(fgetc(file), EOF);
     fclose(file);
+}
+int main(int argc, char **argv) {
+    if (argc > 2) {
+        fprintf(stderr, "usage: %s [full-state-vectors.bin]\n", argv[0]);
+        return 2;
+    }
+    if (argc == 2)
+        replay(argv[1], 1);
+    else {
+        replay(SAMSA_SOURCE_DIR "/tests/vectors/architecture.bin", 100000);
+        replay(SAMSA_SOURCE_DIR "/tests/vectors/sequences.bin", 10000);
+    }
     return 0;
 }

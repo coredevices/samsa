@@ -6,11 +6,17 @@
 `oracle_cases.py`. It selects each family in turn, randomizes valid operands and
 initial state, and executes on Unicorn's Cortex-M3 model. `architecture.json`
 records the producer/version, seed, family counts, manual expectations, and hash.
+The `--suite sequences` profile produces `sequences.bin`/`.json`: 10,000 sequences
+across 20 families. These compose narrow/wide ALU operations, carry dependencies,
+all IT masks with changing flags, memory operations, MRS/MSR and sticky Q.
 
 Replay needs no Python, assembler, or emulator library. `test_arch_vectors` checks
 all sixteen registers, NZCVQ and ITSTATE, the stop/payload, and every mapped byte.
-Each case runs both with a single instruction budget and with one-instruction
-budgets to exercise ITSTATE and exclusive-monitor resumption. A failing replay
+Each case runs both with one continuous budget and with one-instruction budgets
+to exercise ITSTATE and exclusive-monitor resumption. Cache-enabled builds repeat
+both modes with the previous replay's instruction cache retained, while restoring
+architectural state and memory. This checks cached execution against the same
+oracle expectations as initial decoding. A failing replay
 prints the vector index, family, instruction halfwords, and changed state.
 
 The byte order is little-endian, with no native C padding. The header is magic

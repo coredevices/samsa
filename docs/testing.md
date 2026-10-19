@@ -34,6 +34,7 @@ python3 -m venv .venv  # Python >= 3.10
 .venv/bin/python tools/gen_vectors.py                 # Unicorn, 100,000 cases
 .venv/bin/python tools/gen_vectors.py --producer spec # independent integer model
 .venv/bin/python tools/gen_arch_vectors.py            # full-state family cases
+.venv/bin/python tools/gen_arch_vectors.py --suite sequences # 10,000 mixed sequences
 ruff check tools
 ruff format --check tools
 ```
@@ -60,7 +61,21 @@ Unicorn use exact manual-derived expectations, counted separately in metadata.
 All other valid cases require oracle execution; no whole families are skipped.
 
 The replay compares all registers and mapped memory, both continuously and with
-one-instruction budgets. See [the full-state format](vector-format.md) and
+one-instruction budgets. An additional 10,000 oracle sequences cover flag/carry
+dependencies, mixed widths, all IT masks with changing flags, memory, MRS/MSR,
+and sticky Q. Cached builds also replay both corpora with warm instruction caches.
+There are no manual overrides in the sequence corpus.
+
+Generate larger or alternate-seed corpora without changing checked-in fixtures:
+
+```sh
+.venv/bin/python tools/gen_arch_vectors.py --suite sequences --count 100000 \
+  --seed 0x20261019 --output /tmp/samsa-sequences.bin
+build/test_arch_vectors /tmp/samsa-sequences.bin
+```
+
+The ordinary no-argument test still requires the full checked-in family and
+sequence corpora. See [the full-state format](vector-format.md) and
 [the oracle disputes](../tests/vectors/disputes.md). Unclassified random encodings
 remain in sanitizer/fuzzer testing, where no architectural equivalence is claimed.
 
