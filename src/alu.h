@@ -29,7 +29,13 @@ bool multiple(SamsaCpu *c, unsigned rn, uint32_t list, bool load, bool db, bool 
 static inline uint32_t reg(const SamsaCpu *c, unsigned r, uint32_t pc) {
     return r == 15 ? pc + 4u : c->r[r];
 }
-static inline bool undef(SamsaCpu *c) { c->_stop = SAMSA_STOP_UNDEF; return false; }
-static inline bool usage(SamsaCpu *c) { c->_stop = SAMSA_STOP_USAGE; return false; }
+static inline bool undef(SamsaCpu *c) {
+    c->_stop = SAMSA_STOP_UNDEF;
+    return false;
+}
+static inline bool usage(SamsaCpu *c) {
+    c->_stop = SAMSA_STOP_USAGE;
+    return false;
+}
 static inline bool last_it(const SamsaCpu *c) { return (c->itstate & 7u) == 0; }
 #endif

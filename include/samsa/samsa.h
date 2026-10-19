@@ -13,11 +13,23 @@ extern "C" {
 #define SAMSA_X 4u
 #define SAMSA_RETURN_PC UINT32_C(0xfffffffe)
 typedef enum {
-    SAMSA_STOP_BUDGET, SAMSA_STOP_HOOK, SAMSA_STOP_RETURN, SAMSA_STOP_SVC,
-    SAMSA_STOP_BKPT, SAMSA_STOP_UNDEF, SAMSA_STOP_MEMFAULT, SAMSA_STOP_USAGE
+    SAMSA_STOP_BUDGET,
+    SAMSA_STOP_HOOK,
+    SAMSA_STOP_RETURN,
+    SAMSA_STOP_SVC,
+    SAMSA_STOP_BKPT,
+    SAMSA_STOP_UNDEF,
+    SAMSA_STOP_MEMFAULT,
+    SAMSA_STOP_USAGE
 } SamsaStop;
-typedef struct { uint32_t guest_base, size; uint8_t *host; uint8_t perms; } SamsaRegion;
-typedef struct { uint32_t start, end; } SamsaHook;
+typedef struct {
+    uint32_t guest_base, size;
+    uint8_t *host;
+    uint8_t perms;
+} SamsaRegion;
+typedef struct {
+    uint32_t start, end;
+} SamsaHook;
 struct SamsaCpu;
 typedef struct {
     bool (*read)(struct SamsaCpu *, uint32_t, unsigned, uint32_t *);
@@ -46,11 +58,10 @@ void samsa_return32(SamsaCpu *cpu, uint32_t value);
 void samsa_return64(SamsaCpu *cpu, uint64_t value);
 typedef SamsaStop (*SamsaStopHandler)(SamsaCpu *, SamsaStop, void *);
 /* Handler returns BUDGET to continue. Each call has a finite instruction limit. */
-SamsaStop samsa_call_budget(SamsaCpu *, uint32_t fn, const uint32_t *args,
-                          unsigned nargs, uint32_t *ret, SamsaStopHandler,
-                          void *ctx, uint32_t max_insns);
-SamsaStop samsa_call(SamsaCpu *, uint32_t fn, const uint32_t *args,
-                   unsigned nargs, uint32_t *ret, SamsaStopHandler, void *ctx);
+SamsaStop samsa_call_budget(SamsaCpu *, uint32_t fn, const uint32_t *args, unsigned nargs,
+                            uint32_t *ret, SamsaStopHandler, void *ctx, uint32_t max_insns);
+SamsaStop samsa_call(SamsaCpu *, uint32_t fn, const uint32_t *args, unsigned nargs, uint32_t *ret,
+                     SamsaStopHandler, void *ctx);
 void samsa_invalidate(SamsaCpu *cpu, uint32_t addr, uint32_t len);
 #ifdef __cplusplus
 }
