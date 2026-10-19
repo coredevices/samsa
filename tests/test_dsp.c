@@ -78,7 +78,32 @@ static void parallel(void) {
     rejected(0xfa91, 0xf00f);
     rejected(0xfaaf, 0xf082);
 }
+static void saturating(void) {
+    // clang-format off
+    static const Case cases[] = {
+        /* qadd/qsub r0, r1, r2 compute r1 +/- r2; the D forms double r2 first. */
+        {"qadd", 0xfa82, 0xf081, {0, 0x7fffffff, 1, 0}, 0,
+         {0x7fffffff, 0x7fffffff, 1, 0}, T | QF},
+        {"qadd exact", 0xfa82, 0xf081, {0, 5, 0xfffffffd, 0}, 0xf0000000 | GE(9),
+         {2, 5, 0xfffffffd, 0}, 0xf0000000 | T | GE(9)},
+        {"qsub", 0xfa82, 0xf0a1, {0, 0x80000000, 1, 0}, 0,
+         {0x80000000, 0x80000000, 1, 0}, T | QF},
+        {"qdadd", 0xfa82, 0xf091, {0, 0, 0x40000000, 0}, 0,
+         {0x7fffffff, 0, 0x40000000, 0}, T | QF},
+        {"qdadd doubling only", 0xfa82, 0xf091, {0, 0xffffffff, 0x40000000, 0}, 0,
+         {0x7ffffffe, 0xffffffff, 0x40000000, 0}, T | QF},
+        {"qdsub", 0xfa82, 0xf0b1, {0, 0x7fffffff, 0xc0000000, 0}, 0,
+         {0x7fffffff, 0x7fffffff, 0xc0000000, 0}, T | QF},
+        {"qdsub exact", 0xfa82, 0xf0b1, {0, 10, 3, 0}, QF,
+         {4, 10, 3, 0}, T | QF},
+    };
+    // clang-format on
+    CHECK_CASES(cases);
+    rejected(0xfa8f, 0xf081);
+    rejected(0xfa82, 0xf0c1); /* bits 7:6 = 11 */
+}
 int main(void) {
     parallel();
+    saturating();
     return 0;
 }

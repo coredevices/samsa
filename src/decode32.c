@@ -1,6 +1,12 @@
 /* SPDX-FileCopyrightText: 2026 Joshua Jun */
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "alu.h"
+static int64_t sint(uint32_t v) { return (int64_t)(v & 0x7fffffffu) - (int64_t)(v & 0x80000000u); }
+static int64_t clamp(int64_t v, int64_t lo, int64_t hi, bool *saturated) {
+    if (v < lo || v > hi)
+        *saturated = true;
+    return v < lo ? lo : v > hi ? hi : v;
+}
 static bool dp(SamsaCpu *c, unsigned op, unsigned n, unsigned d, uint32_t b, unsigned cy,
                bool flags, uint32_t pc) {
     uint32_t a = reg(c, n, pc), v;
@@ -368,6 +374,17 @@ static bool data_reg(SamsaCpu *c, uint16_t h, uint16_t l) {
         return undef(c);
     if ((op & 8u) && !(sub & 8u))
         return parallel(c, op & 7u, sub & 3u, !(sub & 4u), d, c->r[n], c->r[m]);
+    if (op == 8 && (sub & 12u) == 8) { /* QADD, QDADD, QSUB, QDSUB */
+        bool sat = false;
+        int64_t b = sint(c->r[n]);
+        if (sub & 1u)
+            b = clamp(2 * b, INT32_MIN, INT32_MAX, &sat);
+        b = clamp(sub & 2u ? sint(c->r[m]) - b : sint(c->r[m]) + b, INT32_MIN, INT32_MAX, &sat);
+        if (sat)
+            c->_flags |= Q;
+        put(c, d, (uint32_t)b);
+        return true;
+    }
     if (op == 10 && sub == 8) { /* SEL picks bytes by GE. */
         v = 0;
         for (unsigned i = 0; i < 4; ++i)

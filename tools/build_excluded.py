@@ -16,9 +16,7 @@ def instructions():
     def add(name, operands="r0, r1, r2"):
         result.append((name, f"{name} {operands}"))
 
-    # SEL and the parallel add/subtract instructions are implemented.
-    for name in ["qadd", "qsub", "qdadd", "qdsub"]:
-        add(name)
+    # QADD/QSUB/QDADD/QDSUB, SEL and parallel add/subtract are implemented.
     # SXTAH/UXTAH/SXTAB/UXTAB are implemented: Cortex-M4 app builds use them.
     for name in ["sxtab16", "uxtab16"]:
         add(name, "r0, r1, r2, ror #8")

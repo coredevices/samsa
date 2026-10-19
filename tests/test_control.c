@@ -83,7 +83,7 @@ static void system_ops(void) {
         CODE(&f, 0xf3bf, 0x8f0fu | (barrier << 4));
         EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_BUDGET);
     }
-    const uint16_t bad[][2] = {{0xfa81, 0xf082}, {0xfb21, 0xf002}, {0xef00, 0x0000},
+    const uint16_t bad[][2] = {{0xfa91, 0xf032}, {0xfb21, 0xf002}, {0xef00, 0x0000},
                                {0xf3ef, 0x8014}, {0xf380, 0x8814}, {0xf3af, 0x8100},
                                {0xf7f0, 0xa000}};
     for (unsigned i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i) {
