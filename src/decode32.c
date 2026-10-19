@@ -366,7 +366,7 @@ static bool multiply(SamsaCpu *c, uint16_t h, uint16_t l) {
         return true;
     }
     unsigned op = h >> 4 & 7u;
-    if ((op == 1 || op == 3) && (l & 0xf0f0u) == 0xf0f0u) {
+    if ((h & 0xffd0u) == 0xfb90u && (l & 0xf0f0u) == 0xf0f0u) {
         uint32_t x = c->r[n], y = c->r[m], v = 0;
         if (y) {
             if (op == 3)
