@@ -63,6 +63,13 @@ int main(void) {
     EQ(f.c.fault_pc, 0xdead);
     EQ(f.c.fault_addr, 0xbeef);
     EQ(samsa_call(&f.c, 0x1000, args, 2, &ret, NULL, NULL), SAMSA_STOP_USAGE);
+    /* msr APSR_g,r0 inside a call; the caller's GE bits are restored. */
+    init(&f);
+    CODE(&f, 0xf380, 0x8400, 0x4770);
+    samsa_set_xpsr(&f.c, 0x00050000);
+    uint32_t ge = 0x000a0000;
+    EQ(samsa_call(&f.c, 0x1001, &ge, 1, NULL, NULL, NULL), SAMSA_STOP_RETURN);
+    EQ(samsa_get_xpsr(&f.c), 0x01050000);
     init(&f);
     CODE(&f, 0x9800, 0x9901, 0x1840, 0x4770);
     uint32_t many[] = {1, 2, 3, 4, 5, 6};

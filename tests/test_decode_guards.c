@@ -58,6 +58,9 @@ int main(void) {
         init(&f);
         CODE(&f, 0xf380, 0x8800u | selector);
         EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_UNDEF);
+        init(&f);
+        CODE(&f, 0xf380, 0x8c00u | selector);
+        EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_UNDEF);
     }
     for (unsigned low = 0x60; low <= 0x73; ++low) {
         init(&f);

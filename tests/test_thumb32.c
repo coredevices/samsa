@@ -261,6 +261,22 @@ static void control(void) {
     f.c.r[0] = 0xf8000000;
     samsa_run(&f.c, 3, NULL);
     EQ(f.c.r[1], 0xf8000000);
+    /* msr APSR_nzcvqg,r0; msr APSR_g,r2; mrs r1,APSR (DSP GE bits 19:16) */
+    init(&f);
+    CODE(&f, 0xf380, 0x8c00, 0xf382, 0x8400, 0xf3ef, 0x8100);
+    f.c.r[0] = 0xffffffff;
+    f.c.r[2] = 0x000a0000;
+    EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_BUDGET);
+    EQ(samsa_get_xpsr(&f.c), 0xf90f0000);
+    EQ(samsa_run(&f.c, 2, NULL), SAMSA_STOP_BUDGET);
+    EQ(f.c.r[1], 0xf80a0000);
+    samsa_set_xpsr(&f.c, 0x00050000);
+    EQ(samsa_get_xpsr(&f.c), 0x01050000);
+    samsa_reset(&f.c);
+    EQ(samsa_get_xpsr(&f.c), 0x01000000);
+    init(&f);
+    CODE(&f, 0xf380, 0x8000);
+    EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_UNDEF);
     init(&f);
     CODE(&f, 0xf3ef, 0x8010);
     EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_UNDEF);

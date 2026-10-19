@@ -10,10 +10,11 @@ _Static_assert(sizeof(SamsaCpu) < 128, "CPU size budget exceeded");
 void samsa_reset(SamsaCpu *c) { memset(c, 0, sizeof(*c)); }
 uint32_t samsa_get_xpsr(const SamsaCpu *c) {
     return (uint32_t)c->_flags << 24 | UINT32_C(0x01000000) | (uint32_t)(c->itstate & 3u) << 25 |
-           (uint32_t)(c->itstate & 0xfcu) << 8;
+           (uint32_t)c->_ge << 16 | (uint32_t)(c->itstate & 0xfcu) << 8;
 }
 void samsa_set_xpsr(SamsaCpu *c, uint32_t x) {
     c->_flags = (uint8_t)(x >> 24 & 0xf8u);
+    c->_ge = (uint8_t)(x >> 16 & 15u);
     c->itstate = (uint8_t)((x >> 25 & 3u) | (x >> 8 & 0xfcu));
 }
 bool target_special(const SamsaCpu *c, uint32_t a) {

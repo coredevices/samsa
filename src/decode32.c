@@ -78,14 +78,18 @@ static bool control(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
         unsigned d = l >> 8 & 15u;
         if (d == 13 || d == 15)
             return undef(c);
-        put(c, d, (uint32_t)c->_flags << 24);
+        put(c, d, (uint32_t)c->_flags << 24 | (uint32_t)c->_ge << 16);
         return true;
     }
-    if ((h & 0xfff0u) == 0xf380u && l == 0x8800u) {
+    if ((h & 0xfff0u) == 0xf380u && (l & 0xf3ffu) == 0x8000u && (l & 0xc00u)) {
+        /* APSR_nzcvq (mask 10), with the DSP extension's APSR_g (01, 11). */
         unsigned n = h & 15u;
         if (n == 13 || n == 15)
             return undef(c);
-        c->_flags = (uint8_t)(c->r[n] >> 24 & 0xf8u);
+        if (l & 0x800u)
+            c->_flags = (uint8_t)(c->r[n] >> 24 & 0xf8u);
+        if (l & 0x400u)
+            c->_ge = (uint8_t)(c->r[n] >> 16 & 15u);
         return true;
     }
     if (h == 0xf3afu && (l & 0xff00u) == 0x8000u)

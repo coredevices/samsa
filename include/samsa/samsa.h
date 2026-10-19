@@ -52,7 +52,7 @@ typedef struct SamsaCpu {
     uint16_t num_regions, num_hooks;
     uint8_t itstate, stop_info;
     /* Internal state. Use xPSR accessors for flags. */
-    uint8_t _flags, _exclusive_size, _stop, _calling;
+    uint8_t _flags, _exclusive_size, _stop, _calling, _ge;
 #if SAMSA_CACHE_ENTRIES
     struct {
         struct {
