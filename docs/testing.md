@@ -79,10 +79,12 @@ sequence corpora. See [the full-state format](vector-format.md) and
 [the oracle disputes](../tests/vectors/disputes.md). Unclassified random encodings
 remain in sanitizer/fuzzer testing, where no architectural equivalence is claimed.
 
-`tools/build_excluded.py` regenerates the directed table of 78 excluded DSP
-instructions using ARM GNU assembler. The core never executes or links those
-instructions. Guard tests also reject every coprocessor first-halfword allocation
-and unsupported MRS/MSR selectors, and check reserved multiply encoding bits.
+`tools/build_dsp.py` regenerates `tests/vectors/dsp.h`, a directed table of 92
+ARMv7E-M DSP instructions (every mnemonic plus the APSR_g MSR masks) assembled
+by ARM GNU assembler; `test_decode_guards` requires each to execute.
+`test_dsp` checks hand-derived results for every DSP family. Guard tests also
+reject every coprocessor first-halfword allocation and unsupported MRS/MSR
+selectors, and check reserved multiply encoding bits.
 
 Files use little-endian fixed-width integers: magic `SAMSV001`, count (u32),
 then 24-byte records `(first:u16, second:u16, seed:u32, r0:u32, apsr:u32,

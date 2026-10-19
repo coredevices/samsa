@@ -203,10 +203,46 @@ static void multiplies(void) {
     rejected(0xfb21, 0xd002);
     rejected(0xfb5d, 0xf002);
 }
+static void long_multiplies(void) {
+    // clang-format off
+    static const Case cases[] = {
+        /* r3:r0 += r1 x r2 */
+        {"smlalbb", 0xfbc1, 0x0382, {0xffffffff, 0x0000ffff, 0x00000002, 0}, 0,
+         {0xfffffffd, 0x0000ffff, 0x00000002, 0}, T},
+        {"smlalbt", 0xfbc1, 0x0392, {0xffffffff, 0x00000003, 0x00050000, 0}, 0,
+         {0x0000000e, 0x00000003, 0x00050000, 1}, T},
+        {"smlaltb", 0xfbc1, 0x03a2, {0, 0x80000000, 0x00008000, 0x7fffffff}, 0,
+         {0x40000000, 0x80000000, 0x00008000, 0x7fffffff}, T},
+        {"smlaltt", 0xfbc1, 0x03b2, {0, 0xffff0000, 0x00010000, 0}, 0xf8000000,
+         {0xffffffff, 0xffff0000, 0x00010000, 0xffffffff}, 0xf8000000 | T},
+        {"smlald", 0xfbc1, 0x03c2, {0xffffffff, 0x80008000, 0x80008000, 0x7fffffff}, 0,
+         {0x7fffffff, 0x80008000, 0x80008000, 0x80000000}, T},
+        {"smlaldx", 0xfbc1, 0x03d2, {10, 0x00030002, 0x00050004, 0}, 0,
+         {32, 0x00030002, 0x00050004, 0}, T},
+        {"smlsld", 0xfbd1, 0x03c2, {0, 0x00030002, 0x00050004, 0}, 0,
+         {0xfffffff9, 0x00030002, 0x00050004, 0xffffffff}, T},
+        {"smlsldx", 0xfbd1, 0x03d2, {10, 0x00030002, 0x00050004, 5}, 0,
+         {8, 0x00030002, 0x00050004, 5}, T},
+        /* UMAAL adds both halves of the destination to the product; it cannot carry out. */
+        {"umaal", 0xfbe1, 0x0362, {0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff}, 0,
+         {0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff}, T},
+        {"umaal small", 0xfbe1, 0x0362, {7, 0x10000, 0x10000, 2}, 0,
+         {9, 0x10000, 0x10000, 1}, T},
+    };
+    // clang-format on
+    CHECK_CASES(cases);
+    rejected(0xfbc1, 0x03e2); /* op2 111x */
+    rejected(0xfbd1, 0x0382); /* SMLSL<x><y> does not exist */
+    rejected(0xfbe1, 0x0372);
+    rejected(0xfbc1, 0x0002); /* RdLo == RdHi */
+    rejected(0xfbc1, 0xd382);
+    rejected(0xfbc1, 0x0f82);
+}
 int main(void) {
     parallel();
     saturating();
     packing();
     multiplies();
+    long_multiplies();
     return 0;
 }

@@ -523,19 +523,38 @@ static bool multiply(SamsaCpu *c, uint16_t h, uint16_t l) {
         put(c, d, v);
         return true;
     }
-    if (!(h & 128u) || (l & 0xf0u) || (op != 0 && op != 2 && op != 4 && op != 6) || a == 13 ||
-        a == 15 || a == d)
+    unsigned op2 = l >> 4 & 15u;
+    if (!(h & 128u) || a == 13 || a == 15 || a == d)
         return undef(c);
     uint32_t x = c->r[n], y = c->r[m];
-    uint64_t product = (uint64_t)x * y;
-    if (!(op & 2u)) { /* Signed product via unsigned two's-complement arithmetic. */
-        if (x >> 31)
-            product -= (uint64_t)y << 32;
-        if (y >> 31)
-            product -= (uint64_t)x << 32;
+    uint64_t product, acc = (uint64_t)c->r[d] << 32 | c->r[a];
+    if (op2) { /* ARMv7E-M SMLAL<x><y>, SMLALD/SMLSLD (X swaps Rm) and UMAAL */
+        if (op == 4 && (op2 & 12u) == 8)
+            product = (uint64_t)(half(op2 & 2u ? x >> 16 : x) * half(op2 & 1u ? y >> 16 : y));
+        else if ((op == 4 || op == 5) && (op2 & 14u) == 12) {
+            if (op2 & 1u)
+                y = y >> 16 | y << 16;
+            product =
+                (uint64_t)(half(x) * half(y) + (op == 4 ? 1 : -1) * half(x >> 16) * half(y >> 16));
+        } else if (op == 6 && op2 == 6) {
+            product = (uint64_t)x * y;
+            acc = (uint64_t)c->r[d] + c->r[a];
+        } else
+            return undef(c);
+        product += acc;
+    } else {
+        if (op != 0 && op != 2 && op != 4 && op != 6)
+            return undef(c);
+        product = (uint64_t)x * y;
+        if (!(op & 2u)) { /* Signed product via unsigned two's-complement arithmetic. */
+            if (x >> 31)
+                product -= (uint64_t)y << 32;
+            if (y >> 31)
+                product -= (uint64_t)x << 32;
+        }
+        if (op & 4u)
+            product += acc;
     }
-    if (op & 4u)
-        product += (uint64_t)c->r[d] << 32 | c->r[a];
     c->r[a] = (uint32_t)product;
     put(c, d, (uint32_t)(product >> 32));
     return true;
