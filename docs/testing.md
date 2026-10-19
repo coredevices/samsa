@@ -79,7 +79,7 @@ sequence corpora. See [the full-state format](vector-format.md) and
 [the oracle disputes](../tests/vectors/disputes.md). Unclassified random encodings
 remain in sanitizer/fuzzer testing, where no architectural equivalence is claimed.
 
-`tools/build_excluded.py` regenerates the directed table of 90 excluded DSP
+`tools/build_excluded.py` regenerates the directed table of 86 excluded DSP
 instructions using ARM GNU assembler. The core never executes or links those
 instructions. Guard tests also reject every coprocessor first-halfword allocation
 and unsupported MRS/MSR selectors, and check reserved multiply encoding bits.

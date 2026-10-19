@@ -21,7 +21,8 @@ def instructions():
     for prefix in ["s", "q", "sh", "u", "uq", "uh"]:
         for operation in ["add16", "asx", "sax", "sub16", "add8", "sub8"]:
             add(prefix + operation)
-    for name in ["sxtah", "uxtah", "sxtab", "uxtab", "sxtab16", "uxtab16"]:
+    # SXTAH/UXTAH/SXTAB/UXTAB are implemented: Cortex-M4 app builds use them.
+    for name in ["sxtab16", "uxtab16"]:
         add(name, "r0, r1, r2, ror #8")
     for name in ["sxtb16", "uxtb16"]:
         add(name, "r0, r1, ror #8")

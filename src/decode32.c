@@ -315,11 +315,16 @@ static bool data_reg(SamsaCpu *c, uint16_t h, uint16_t l) {
             nzc(c, v, cy);
         return true;
     }
-    if (n == 15 && (sub & 12u) == 8 && (op == 0 || op == 1 || op == 4 || op == 5)) {
+    if ((sub & 12u) == 8 && (op == 0 || op == 1 || op == 4 || op == 5)) {
+        /* With Rn, these are the ARMv7E-M SXTAH/UXTAH/SXTAB/UXTAB, which
+           Cortex-M4 builds of real apps use. */
+        if (n == 13)
+            return undef(c);
         v = shift(c->r[m], 3, (sub & 3u) * 8u, &cy);
         unsigned bits = op < 2 ? 16 : 8;
         v &= UINT32_MAX >> (32u - bits);
-        put(c, d, op & 1u ? v : sx(v, bits));
+        v = op & 1u ? v : sx(v, bits);
+        put(c, d, n == 15 ? v : c->r[n] + v);
         return true;
     }
     if ((op == 9 || op == 11) && n == m && sub >= 8 && sub <= 11) {

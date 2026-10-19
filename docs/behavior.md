@@ -5,7 +5,8 @@
 The target is ARMv7-M Thumb, Cortex-M3 default settings, little-endian guest and
 host. Compilation fails on an unknown or big-endian host byte order. No ARM/A32,
 VFP, ARMv7E-M DSP, exception/NVIC/MPU, privileged registers, or binary format is
-implemented. Unknown encodings stop with UNDEF. Many UNPREDICTABLE combinations
+implemented, except the DSP extend-and-add forms SXTAB, SXTAH, UXTAB and UXTAH,
+which Cortex-M4 builds of real apps emit. Unknown encodings stop with UNDEF. Many UNPREDICTABLE combinations
 also stop with UNDEF; this is a deterministic policy, not a promise to reproduce
 hardware's behavior on UNPREDICTABLE inputs. The coverage checklist maps encoding
 families and representative reserved-bit guards to their tests.

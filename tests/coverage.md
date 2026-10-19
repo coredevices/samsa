@@ -106,7 +106,7 @@ when caching is enabled.
 | A5-28 MUL/MLA/MLS | I D | test_thumb32 multiply_divide |
 | A5-29 SMULL/UMULL/SMLAL/UMLAL | I D | test_thumb32 multiply_divide; libgcc |
 | A5-29 SDIV/UDIV | I D | test_thumb32 zero divisor, signed overflow; compiled programs |
-| A5-25/26/27/28/29 DSP extension entries | rejected D | test_decode_guards, 90 assembled DSP representatives |
+| A5-25/26/27/28/29 DSP extension entries | rejected D | test_decode_guards, 86 assembled DSP representatives |
 | A5-30 coprocessor, A6 floating point | rejected D | test_decode_guards, all first-halfword allocations |
 
 ## Explicit architectural hazards
