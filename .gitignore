@@ -1,0 +1,7 @@
+build*/
+*.o
+*.a
+*.bundle
+__pycache__/
+.venv/
+.ruff_cache/
