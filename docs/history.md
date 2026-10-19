@@ -8,12 +8,16 @@ a separate temporary Git directory, and exported to `samsa-history.bundle` in
 the workspace. Each commit has Joshua Jun's signoff and an AI co-author trailer.
 No remote was configured, and nothing was pushed or published.
 
-To obtain an ordinary checkout with this history, from the workspace directory:
+After permission escalation became available, the existing bundle was imported
+into this workspace's `.git`. This is now an ordinary checkout; use `git log`
+and `git status` here. Subsequent validation commits are recorded there.
+
+`samsa-history.bundle` remains an ignored, portable backup of the signed history.
+To obtain a separate checkout from it:
 
 ```sh
 git clone samsa-history.bundle ../samsa-checkout
 ```
 
-The original source files remain here as well. The bundle is ignored by Git to
-avoid embedding a repository recursively inside itself. It contains all tracked
-sources, fixtures, model vectors, tests, documentation, and CI configuration.
+The bundle contains all tracked sources, fixtures, vectors, tests, documentation,
+and CI configuration. Nothing was pushed or published.

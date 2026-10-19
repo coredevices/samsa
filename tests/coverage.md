@@ -5,7 +5,9 @@
 Source: ARM DDI 0403E.b A5.2/A5.3 and A7. `I` means the decoder family is
 implemented; `D` means directed behavior assertions exist; `V` means sampled
 integer-model ALU vectors. Compiled libgcc execution adds integration coverage,
-not exhaustive encoding coverage. A mark is not an oracle-conformance claim.
+not exhaustive encoding coverage. Only the ALU subset sampled by `gen_vectors.py` has oracle comparison: 100,000
+Unicorn 2.1.4 cases agree with Samsa and the independent model. Other marks do
+not establish oracle conformance.
 
 ## A5.2: Thumb-16
 
@@ -115,7 +117,7 @@ not exhaustive encoding coverage. A mark is not an oracle-conformance claim.
 - [x] Local monitor success, failed second STREX, CLREX, byte/halfword width.
 - [x] Nested callbacks with >=3 levels and outer register/flag restoration.
 - [ ] Directed coverage for every row/form and invalid register combination above.
-- [ ] Unicorn vectors generated/replayed, >=100,000 valid cases.
+- [x] Unicorn vectors generated/replayed, >=100,000 valid ALU cases.
 - [ ] Oracle sampler expanded to every memory/control/data-processing class.
 - [ ] Explicit classified random UNDEF oracle comparisons.
 - [ ] Remote CI matrix green; performance/cache work can then begin.

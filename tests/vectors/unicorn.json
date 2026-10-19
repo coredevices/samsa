@@ -1,0 +1,8 @@
+{
+  "producer": "unicorn",
+  "version": "2.1.4",
+  "count": 100000,
+  "seed": 1396788563,
+  "sha256": "5bbd00f0b46cdf553cba314d79e1d3e3e5b34be818b0db552ac29bca96dbb73f",
+  "scope": "Valid ALU encodings only; random raw encodings use sanitizer tests."
+}

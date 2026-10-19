@@ -37,11 +37,18 @@ ruff check tools
 ruff format --check tools
 ```
 
-`test_vectors` always replays `spec.bin` and replays `unicorn.bin` when present.
-A missing Unicorn corpus is printed explicitly. The oracle CI job generates it
-before running tests; ordinary host CI does not install Python dependencies.
-The initial checkout contains only the spec corpus, because installing Unicorn
-was blocked by network/sandbox policy. No successful oracle result is claimed.
+`test_vectors` requires and replays both checked-in corpora, `spec.bin` and
+`unicorn.bin`, with 100,000 cases each. Unicorn 2.1.4 and the independent model
+agree exactly on this sample, and both corpora pass on Samsa under ASan/UBSan.
+The oracle CI job regenerates Unicorn vectors before running tests; ordinary
+host CI does not install Python dependencies.
+
+The initial sandbox blocked package downloads. After permission escalation
+became available, installation succeeded. Unicorn also required an approved run
+outside the macOS sandbox: inside it, native initialization stopped with SIGILL
+in `init_cache_info` during `uc_mem_map`, before guest execution. Running the
+same generator with escalation succeeded. This was an oracle-runtime restriction,
+not an instruction-semantics disagreement.
 
 The sampler currently covers valid low-register Thumb-16 ALU/shift forms,
 Thumb-32 shifted-register and modified-immediate ALU forms, and MOVW/MOVT. It does **not** yet provide
@@ -55,7 +62,8 @@ blanket skip for an instruction family.
 Files use little-endian fixed-width integers: magic `SAMSV001`, count (u32),
 then 24-byte records `(first:u16, second:u16, seed:u32, r0:u32, apsr:u32,
 pc:u32, stop:u32)`. Each seed initializes r0-r14 with the LCG
-`s = s * 1664525 + 1013904223`; the next word gives NZCVQ. The generator
+`s = s * 1664525 + 1013904223`; SP is then aligned down to four bytes,
+and the next word gives NZCVQ. The generator
 checks that the other registers remain unchanged. JSON records producer,
 version, seed, count, and SHA-256. The replay verifies every other register too.
 There is no dependency on C struct padding or Python at replay time.

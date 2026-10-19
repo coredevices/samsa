@@ -47,18 +47,18 @@ No emulator source was used.
 
 The implementation covers the requested integer instruction families and passes
 hand-written instruction tests, native-versus-guest compiled C tests (including
-libgcc soft float and four nested callbacks), 100,000 independent integer-model
-ALU vectors, and 300,000 bounded random cases under ASan/UBSan on macOS/Clang, plus 100,000 libFuzzer runs.
+libgcc soft float and four nested callbacks), 100,000 Unicorn 2.1.4 ALU vectors,
+100,000 independent integer-model ALU vectors, and 300,000 bounded random cases
+under ASan/UBSan on macOS/Clang, plus 100,000 libFuzzer runs.
 GCC cross-compilation for Cortex-M4 Thumb and ARM7TDMI ARM is warning-free.
 The CPU occupies 120 bytes on the tested 64-bit host; the cross-compilation
 script checks the Cortex-M4 object text total against 16 KiB.
 
-**This is not a completed architectural conformance release.** The Unicorn
-producer and CI job are provided, but Unicorn could not be installed in the
-initial restricted environment. The checked-in vectors explicitly identify their
-producer as `spec`, not Unicorn. Oracle validation, expansion of the vector
-sampler beyond its current ALU subset, a fully audited per-encoding checklist,
-and live Linux/GCC/macOS CI results remain outstanding. Performance optimization
+**This is not a completed architectural conformance release.** The checked-in
+corpora identify their producers as `unicorn` and `spec`; all 100,000 sampled
+cases agree exactly. Expansion of oracle validation beyond the current ALU
+subset, a fully audited per-encoding checklist, and live Linux/GCC/macOS CI
+results remain outstanding. Performance optimization
 and a decode cache are deferred until correctness validation is complete;
 `samsa_invalidate` currently has no work to do.
 

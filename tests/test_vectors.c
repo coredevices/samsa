@@ -5,14 +5,10 @@ static uint32_t next(uint32_t *s) {
     *s = *s * 1664525u + 1013904223u;
     return *s;
 }
-static void replay(const char *name, bool required) {
+static void replay(const char *name) {
     char path[1024];
     snprintf(path, sizeof(path), "%s/tests/vectors/%s.bin", SAMSA_SOURCE_DIR, name);
     FILE *file = fopen(path, "rb");
-    if (!required && !file) {
-        printf("%s corpus unavailable\n", name);
-        return;
-    }
     CHECK(file);
     uint8_t magic[8];
     uint32_t count;
@@ -49,7 +45,7 @@ static void replay(const char *name, bool required) {
     fclose(file);
 }
 int main(void) {
-    replay("spec", true);
-    replay("unicorn", false);
+    replay("spec");
+    replay("unicorn");
     return 0;
 }
