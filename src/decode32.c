@@ -304,6 +304,39 @@ static bool single(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
         put(c, n, next);
     return true;
 }
+/* ARMv7E-M parallel add/subtract (A5.3.13/A5.3.14). op selects the lanes and
+   operations; prefix 0 sets GE, 1 saturates, 2 halves. */
+static bool parallel(SamsaCpu *c, unsigned op, unsigned prefix, bool sign, unsigned d, uint32_t x,
+                     uint32_t y) {
+    if ((op & 3u) == 3 || prefix == 3)
+        return undef(c);
+    unsigned width = op & 3u ? 16 : 8, ge = 0;
+    bool cross = (op & 3u) == 2;
+    uint32_t mask = UINT32_MAX >> (32u - width), top = mask ^ mask >> 1, v = 0;
+    for (unsigned i = 0; i < 32u / width; ++i) {
+        uint32_t ua = x >> (i * width) & mask, ub = y >> ((cross ? i ^ 1u : i) * width) & mask;
+        int32_t a = (int32_t)ua, b = (int32_t)ub, r;
+        if (sign) {
+            a -= (int32_t)((ua & top) << 1);
+            b -= (int32_t)((ub & top) << 1);
+        }
+        /* ASX subtracts in the low lane, SAX in the high lane. */
+        bool sub = cross ? (i == 0) != ((op & 4u) != 0) : (op & 4u) != 0;
+        r = sub ? a - b : a + b;
+        if (prefix == 0 && (sign || sub ? r >= 0 : r > (int32_t)mask))
+            ge |= (width / 8u == 2 ? 3u : 1u) << (i * width / 8u);
+        if (prefix == 1) {
+            int32_t lo = sign ? -(int32_t)top : 0, hi = sign ? (int32_t)top - 1 : (int32_t)mask;
+            r = r < lo ? lo : r > hi ? hi : r;
+        }
+        uint32_t u = prefix == 2 ? (uint32_t)r >> 1 : (uint32_t)r;
+        v |= (u & mask) << (i * width);
+    }
+    if (prefix == 0)
+        c->_ge = (uint8_t)ge;
+    put(c, d, v);
+    return true;
+}
 static bool data_reg(SamsaCpu *c, uint16_t h, uint16_t l) {
     unsigned n = h & 15u, d = l >> 8 & 15u, m = l & 15u;
     unsigned op = h >> 4 & 15u, sub = l >> 4 & 15u, cy = (c->_flags & C) != 0;
@@ -329,6 +362,17 @@ static bool data_reg(SamsaCpu *c, uint16_t h, uint16_t l) {
         v &= UINT32_MAX >> (32u - bits);
         v = op & 1u ? v : sx(v, bits);
         put(c, d, n == 15 ? v : c->r[n] + v);
+        return true;
+    }
+    if (n == 13 || n == 15)
+        return undef(c);
+    if ((op & 8u) && !(sub & 8u))
+        return parallel(c, op & 7u, sub & 3u, !(sub & 4u), d, c->r[n], c->r[m]);
+    if (op == 10 && sub == 8) { /* SEL picks bytes by GE. */
+        v = 0;
+        for (unsigned i = 0; i < 4; ++i)
+            v |= (c->_ge >> i & 1u ? c->r[n] : c->r[m]) & (UINT32_C(255) << (i * 8u));
+        put(c, d, v);
         return true;
     }
     if ((op == 9 || op == 11) && n == m && sub >= 8 && sub <= 11) {
