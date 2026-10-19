@@ -6,14 +6,6 @@ static const struct {
     uint16_t first, second;
 } excluded[] = {
     // clang-format off
-    {"sxtab16", 0xfa21, 0xf092},
-    {"uxtab16", 0xfa31, 0xf092},
-    {"sxtb16", 0xfa2f, 0xf091},
-    {"uxtb16", 0xfa3f, 0xf091},
-    {"pkhbt", 0xeac1, 0x2002},
-    {"pkhtb", 0xeac1, 0x2022},
-    {"ssat16", 0xf321, 0x0007},
-    {"usat16", 0xf3a1, 0x0008},
     {"smlalbb", 0xfbc1, 0x0382},
     {"smlalbt", 0xfbc1, 0x0392},
     {"smlaltb", 0xfbc1, 0x03a2},

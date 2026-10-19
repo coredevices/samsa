@@ -102,8 +102,52 @@ static void saturating(void) {
     rejected(0xfa8f, 0xf081);
     rejected(0xfa82, 0xf0c1); /* bits 7:6 = 11 */
 }
+static void packing(void) {
+    // clang-format off
+    static const Case cases[] = {
+        /* ssat16/usat16 saturate each halfword of r1 into r0. */
+        {"ssat16 #8", 0xf321, 0x0007, {0, 0x0100ff00, 0, 0}, 0,
+         {0x007fff80, 0x0100ff00, 0, 0}, T | QF},
+        {"ssat16 #16", 0xf321, 0x000f, {0, 0x80007fff, 0, 0}, 0,
+         {0x80007fff, 0x80007fff, 0, 0}, T},
+        {"usat16 #8", 0xf3a1, 0x0008, {0, 0x0100ff00, 0, 0}, 0,
+         {0x00ff0000, 0x0100ff00, 0, 0}, T | QF},
+        {"usat16 #0", 0xf3a1, 0x0000, {0, 0x00010000, 0, 0}, 0,
+         {0, 0x00010000, 0, 0}, T | QF},
+        {"usat16 exact", 0xf3a1, 0x0008, {0, 0x00ff0012, 0, 0}, QF,
+         {0x00ff0012, 0x00ff0012, 0, 0}, T | QF},
+        /* pkhbt/pkhtb r0, r1, r2, shift */
+        {"pkhbt lsl #8", 0xeac1, 0x2002, {0, 0x11112222, 0x00abcd00, 0}, 0,
+         {0xabcd2222, 0x11112222, 0x00abcd00, 0}, T},
+        {"pkhtb asr #8", 0xeac1, 0x2022, {0, 0x11112222, 0x80001234, 0}, 0,
+         {0x11110012, 0x11112222, 0x80001234, 0}, T},
+        {"pkhtb asr #32", 0xeac1, 0x0022, {0, 0x11112222, 0x80001234, 0}, 0,
+         {0x1111ffff, 0x11112222, 0x80001234, 0}, T},
+        /* Byte lanes 0 and 2 of the rotated operand, optionally added. */
+        {"sxtb16 ror #8", 0xfa2f, 0xf091, {0, 0x8012fe34, 0, 0}, 0,
+         {0xff80fffe, 0x8012fe34, 0, 0}, T},
+        {"uxtb16", 0xfa3f, 0xf081, {0, 0x8012fe34, 0, 0}, 0,
+         {0x00120034, 0x8012fe34, 0, 0}, T},
+        {"sxtab16 ror #8", 0xfa21, 0xf092, {0, 0x00010001, 0x8012fe34, 0}, 0,
+         {0xff81ffff, 0x00010001, 0x8012fe34, 0}, T},
+        {"uxtab16 ror #24", 0xfa31, 0xf0b2, {0, 0xffff0001, 0x8012fe34, 0}, 0,
+         {0x00fd0081, 0xffff0001, 0x8012fe34, 0}, T},
+    };
+    // clang-format on
+    CHECK_CASES(cases);
+    rejected(0xf321, 0x0017); /* SSAT16 bit 4 */
+    rejected(0xf3a1, 0x0028); /* USAT16 bit 5 */
+    rejected(0xf32d, 0x0007);
+    rejected(0xead1, 0x2002); /* PKH S bit */
+    rejected(0xeac1, 0x2012); /* PKH T bit */
+    rejected(0xeac1, 0x2f02);
+    rejected(0xeacd, 0x2002);
+    rejected(0xfa2d, 0xf092);
+    rejected(0xfa61, 0xf082); /* op1 011x extends */
+}
 int main(void) {
     parallel();
     saturating();
+    packing();
     return 0;
 }

@@ -17,15 +17,7 @@ def instructions():
         result.append((name, f"{name} {operands}"))
 
     # QADD/QSUB/QDADD/QDSUB, SEL and parallel add/subtract are implemented.
-    # SXTAH/UXTAH/SXTAB/UXTAB are implemented: Cortex-M4 app builds use them.
-    for name in ["sxtab16", "uxtab16"]:
-        add(name, "r0, r1, r2, ror #8")
-    for name in ["sxtb16", "uxtb16"]:
-        add(name, "r0, r1, ror #8")
-    add("pkhbt", "r0, r1, r2, lsl #8")
-    add("pkhtb", "r0, r1, r2, asr #8")
-    for name in ["ssat16", "usat16"]:
-        add(name, "r0, #8, r1")
+    # The extends, packs and SSAT16/USAT16 are implemented.
     # SMLA<x><y> and SMUL<x><y> are implemented: Cortex-M4 app builds use them.
     for suffix in ["bb", "bt", "tb", "tt"]:
         add("smlal" + suffix, "r0, r3, r1, r2")

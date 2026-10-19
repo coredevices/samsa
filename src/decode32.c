@@ -151,23 +151,26 @@ static bool plain(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
         return true;
     }
     if (op == 16 || op == 18 || op == 24 || op == 26) {
-        bool sign = op < 24, asr = (op & 2u) != 0;
-        if ((l & 0x20u) || (asr && !amount))
-            return undef(c); /* *SAT16 is DSP. */
-        v = shift(c->r[n], asr ? 2 : 0, amount, &cy);
+        bool sign = op < 24, asr = (op & 2u) != 0, sat = false;
+        if (l & 0x20u)
+            return undef(c);
         unsigned bits = (l & 31u) + (sign ? 1u : 0u);
-        int64_t value = (int64_t)(v & 0x7fffffffu) - (int64_t)(v >> 31) * INT64_C(0x80000000);
         int64_t lo = sign ? -(INT64_C(1) << (bits - 1u)) : 0;
         int64_t hi = sign ? (INT64_C(1) << (bits - 1u)) - 1 : (INT64_C(1) << bits) - 1;
-        if (value < lo) {
-            value = lo;
+        if (asr && !amount) { /* ARMv7E-M SSAT16/USAT16 */
+            if (l & 0x10u)
+                return undef(c);
+            v = 0;
+            for (unsigned i = 0; i < 32; i += 16) {
+                uint32_t lane = c->r[n] >> i & 0xffffu;
+                int64_t x = (int64_t)lane - (int64_t)(lane & 0x8000u) * 2;
+                v |= ((uint32_t)clamp(x, lo, hi, &sat) & 0xffffu) << i;
+            }
+        } else
+            v = (uint32_t)clamp(sint(shift(c->r[n], asr ? 2 : 0, amount, &cy)), lo, hi, &sat);
+        if (sat)
             c->_flags |= Q;
-        }
-        if (value > hi) {
-            value = hi;
-            c->_flags |= Q;
-        }
-        put(c, d, (uint32_t)value);
+        put(c, d, v);
         return true;
     }
     return undef(c);
@@ -358,12 +361,22 @@ static bool data_reg(SamsaCpu *c, uint16_t h, uint16_t l) {
             nzc(c, v, cy);
         return true;
     }
-    if ((sub & 12u) == 8 && (op == 0 || op == 1 || op == 4 || op == 5)) {
+    if ((sub & 12u) == 8 && op < 6) {
         /* With Rn, these are the ARMv7E-M SXTAH/UXTAH/SXTAB/UXTAB, which
-           Cortex-M4 builds of real apps use. */
+           Cortex-M4 builds of real apps use. Op 2/3 are the DSP SXT(A)B16
+           and UXT(A)B16, which extend bytes 0 and 2 into two halfword lanes. */
         if (n == 13)
             return undef(c);
         v = shift(c->r[m], 3, (sub & 3u) * 8u, &cy);
+        if (op == 2 || op == 3) {
+            uint32_t a = n == 15 ? 0 : c->r[n], low = v & 255u, high = v >> 16 & 255u;
+            if (op == 2) {
+                low = sx(low, 8);
+                high = sx(high, 8);
+            }
+            put(c, d, ((a + low) & 0xffffu) | ((a >> 16) + high) << 16);
+            return true;
+        }
         unsigned bits = op < 2 ? 16 : 8;
         v &= UINT32_MAX >> (32u - bits);
         v = op & 1u ? v : sx(v, bits);
@@ -526,6 +539,14 @@ bool execute32(SamsaCpu *c, unsigned op, uint16_t h, uint16_t l, uint32_t pc) {
                 amount = 32;
         }
         uint32_t b = shift(c->r[m], type, amount, &cy);
+        if ((h >> 5 & 15u) == 6) { /* ARMv7E-M PKHBT/PKHTB */
+            unsigned n = h & 15u, d = l >> 8 & 15u;
+            if ((h & 16u) || (l & 16u) || n == 13 || n == 15 || m == 13 || d == 13 || d == 15)
+                return undef(c);
+            uint32_t a = c->r[n];
+            put(c, d, type ? (a & 0xffff0000u) | (b & 0xffffu) : (b & 0xffff0000u) | (a & 0xffffu));
+            return true;
+        }
         return dp(c, h >> 5 & 15u, h & 15u, l >> 8 & 15u, b, cy, (h & 16u) != 0, pc);
     }
     case T32_CONTROL:
