@@ -33,6 +33,7 @@ python3 -m venv .venv  # Python >= 3.10
 .venv/bin/pip install unicorn==2.1.4 ruff==0.14.0
 .venv/bin/python tools/gen_vectors.py                 # Unicorn, 100,000 cases
 .venv/bin/python tools/gen_vectors.py --producer spec # independent integer model
+.venv/bin/python tools/gen_arch_vectors.py            # full-state family cases
 ruff check tools
 ruff format --check tools
 ```
@@ -50,14 +51,23 @@ in `init_cache_info` during `uc_mem_map`, before guest execution. Running the
 same generator with escalation succeeded. This was an oracle-runtime restriction,
 not an instruction-semantics disagreement.
 
-The sampler currently covers valid low-register Thumb-16 ALU/shift forms,
-Thumb-32 shifted-register and modified-immediate ALU forms, and MOVW/MOVT. It does **not** yet provide
-the requested class-by-class memory/control oracle coverage or random-halfword
-architectural classification. Unclassified halfwords stay in safety testing so
-UNPREDICTABLE instructions cannot silently become false correctness references.
-Expansion is tracked in `tests/coverage.md`. Resolve disagreements against the
-ARM manual before adding an entry to `tests/vectors/disputes.md`; never add a
-blanket skip for an instruction family.
+The original sampler covers ALU forms. The full-state sampler additionally
+covers memory/control instructions, IT masks, exclusive sequences, multiply/divide,
+saturation, bitfields, high registers, SP transfers with defined aligned values,
+and random encodings classified into unallocated spaces by A5. There are 100,000
+full-state records across 301 named families. Four YIELD/WFE forms unsupported by
+Unicorn use exact manual-derived expectations, counted separately in metadata.
+All other valid cases require oracle execution; no whole families are skipped.
+
+The replay compares all registers and mapped memory, both continuously and with
+one-instruction budgets. See [the full-state format](vector-format.md) and
+[the oracle disputes](../tests/vectors/disputes.md). Unclassified random encodings
+remain in sanitizer/fuzzer testing, where no architectural equivalence is claimed.
+
+`tools/build_excluded.py` regenerates the directed table of 90 excluded DSP
+instructions using ARM GNU assembler. The core never executes or links those
+instructions. Guard tests also reject every coprocessor first-halfword allocation
+and unsupported MRS/MSR selectors, and check reserved multiply encoding bits.
 
 Files use little-endian fixed-width integers: magic `SAMSV001`, count (u32),
 then 24-byte records `(first:u16, second:u16, seed:u32, r0:u32, apsr:u32,
@@ -87,7 +97,8 @@ Portability checks compile all core sources with `-std=c11 -Os -ffreestanding
 -Wall -Wextra -Werror` for Cortex-M4 Thumb and ARM7TDMI ARM, print size totals,
 and require the Cortex-M4 object text total below 16 KiB. These totals exclude
 embedder libc/libgcc dependencies and linker overhead. Both builds passed
-locally. Linux/GCC and the CI matrix are configured but not yet run remotely.
+locally. Local Linux GCC/Clang container tests and native macOS GCC/Clang tests
+also pass. The configured GitHub Actions workflow has not run remotely.
 
 ## Benchmark
 
@@ -98,6 +109,5 @@ build-release/samsa_bench tests/programs/suite.bin
 ```
 
 This runs compiled programs and counts actual guest instructions. Record baseline
-and later optimized results in commit messages. No lazy-flag or decode-cache
-optimization has been attempted: milestone 7 waits for oracle validation and
-the complete correctness audit.
+and later optimized results in commit messages. The baseline precedes the optional cache optimization. Compare identical
+compiler, build type, workload and host; sanitizer throughput is not comparable.

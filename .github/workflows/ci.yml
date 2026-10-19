@@ -55,8 +55,11 @@ jobs:
       - run: python -m pip install unicorn==2.1.4 ruff==0.14.0
       - run: ruff check tools && ruff format --check tools
       - run: python tools/gen_vectors.py --producer unicorn
+      - run: python tools/gen_arch_vectors.py
       - run: cmake -S . -B build && cmake --build build --parallel && ctest --test-dir build --output-on-failure
       - uses: actions/upload-artifact@v4
         with:
           name: oracle-vectors
-          path: tests/vectors/unicorn.*
+          path: |
+            tests/vectors/unicorn.*
+            tests/vectors/architecture.*

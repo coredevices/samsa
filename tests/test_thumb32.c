@@ -247,11 +247,25 @@ static void control(void) {
     CODE(&f, 0xee00, 0x0000);
     EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_UNDEF);
 }
+static void unaligned_pc_table(void) {
+    Fixture f;
+    init(&f);
+    CODE(&f, 0xbf00, 0xe8df, 0xf012, 0x0000, 0x0005);
+    f.c.r[2] = 1;
+    EQ(samsa_run(&f.c, 2, NULL), SAMSA_STOP_BUDGET);
+    EQ(f.c.r[15], 0x1010);
+    init(&f);
+    CODE(&f, 0xbf00, 0xe8df, 0xf002, 0x0500);
+    f.c.r[2] = 1;
+    EQ(samsa_run(&f.c, 2, NULL), SAMSA_STOP_BUDGET);
+    EQ(f.c.r[15], 0x1010);
+}
 int main(void) {
     data_processing();
     multiply_divide();
     memory();
     exclusive();
     control();
+    unaligned_pc_table();
     return 0;
 }

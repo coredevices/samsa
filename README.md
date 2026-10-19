@@ -45,21 +45,22 @@ No emulator source was used.
 
 ## Current validation
 
-The implementation covers the requested integer instruction families and passes
-hand-written instruction tests, native-versus-guest compiled C tests (including
-libgcc soft float and four nested callbacks), 100,000 Unicorn 2.1.4 ALU vectors,
-100,000 independent integer-model ALU vectors, and 300,000 bounded random cases
-under ASan/UBSan on macOS/Clang, plus 100,000 libFuzzer runs.
-GCC cross-compilation for Cortex-M4 Thumb and ARM7TDMI ARM is warning-free.
-The CPU occupies 120 bytes on the tested 64-bit host; the cross-compilation
-script checks the Cortex-M4 object text total against 16 KiB.
+The integer instruction families are implemented and tested with hand-written
+cases, native-versus-guest C programs (including libgcc soft float and four
+nested callbacks), 100,000 Unicorn ALU vectors, 100,000 independent model vectors,
+and 100,000 full-state cases across 301 named encoding families. Four YIELD/WFE
+forms use explicit manual-derived expectations because Unicorn rejects them;
+the metadata counts these separately. The full-state replay compares every
+register and mapped byte, both continuously and across instruction budgets.
+Reserved encodings, excluded DSP/FPU classes, and unsupported system-register
+selectors have directed rejection tests.
 
-**This is not a completed architectural conformance release.** The checked-in
-corpora identify their producers as `unicorn` and `spec`; all 100,000 sampled
-cases agree exactly. Expansion of oracle validation beyond the current ALU
-subset, a fully audited per-encoding checklist, and live Linux/GCC/macOS CI
-results remain outstanding. Performance optimization
-and a decode cache are deferred until correctness validation is complete;
-`samsa_invalidate` currently has no work to do.
+Local tests pass with GCC and Clang on macOS and Linux, including ASan/UBSan.
+Bounded random testing covers 300,000 cases, plus 100,000 libFuzzer runs.
+GCC cross-compiles warning-free for Cortex-M4 Thumb and ARM7TDMI ARM.
+The CPU occupies 120 bytes on the tested 64-bit host; the portability script
+checks Cortex-M4 object text against the 16 KiB target. See
+[validation status](docs/status.md) for evidence and limits. No remote CI run
+or physical hardware execution is claimed.
 
 Apache-2.0. Copyright 2026 Joshua Jun.

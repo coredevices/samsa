@@ -5,9 +5,13 @@
 Source: ARM DDI 0403E.b A5.2/A5.3 and A7. `I` means the decoder family is
 implemented; `D` means directed behavior assertions exist; `V` means sampled
 integer-model ALU vectors. Compiled libgcc execution adds integration coverage,
-not exhaustive encoding coverage. Only the ALU subset sampled by `gen_vectors.py` has oracle comparison: 100,000
-Unicorn 2.1.4 cases agree with Samsa and the independent model. Other marks do
-not establish oracle conformance.
+not exhaustive operand enumeration. The original ALU corpus has 100,000 Unicorn
+vectors and 100,000 independent-model vectors. `test_arch_vectors` adds 100,000
+full-state records across 301 named encoding families, comparing all registers,
+flags/ITSTATE, and memory in continuous and single-step modes. Exact YIELD/WFE
+oracle limitations are listed in `vectors/disputes.md`, not silently skipped.
+The factory names and counts in `vectors/architecture.json` provide the mapping
+from table forms to executed oracle cases.
 
 ## A5.2: Thumb-16
 
@@ -52,7 +56,7 @@ not establish oracle conformance.
 | B unconditional T2 | I D | test_core |
 | BKPT T1 | I D | test_core |
 | CPS T1 | rejected D | test_thumb16 misc |
-| SETEND / unallocated encodings | rejected | test_random safety; reserved-bit audit pending |
+| SETEND / unallocated encodings | rejected D | test_decode_guards; test_arch_vectors raw.undefined.0 |
 
 ## A5.3: Thumb-32
 
@@ -73,7 +77,7 @@ not establish oracle conformance.
 | A5-15 CLREX/DMB/DSB/ISB | I D | test_thumb32 exclusive; test_control system_ops |
 | A5-16 STMIA/LDMIA T2 | I D | test_thumb32 memory |
 | A5-16 STMDB/LDMDB T1 | I D | test_addressing thumb32 |
-| A5-16 PUSH/POP aliases | I | compiled libgcc |
+| A5-16 PUSH/POP aliases | I D | test_arch_vectors 32.multiple stack forms; compiled libgcc |
 | A5-17 STRD/LDRD T1 immediate/literal, all index modes | I D | test_addressing dual_modes; compiled STRD with LR |
 | A5-17 STREX/LDREX T1 | I D | test_thumb32 exclusive |
 | A5-17 STREXB/LDREXB T1 | I D | test_thumb32 exclusive |
@@ -99,8 +103,8 @@ not establish oracle conformance.
 | A5-28 MUL/MLA/MLS | I D | test_thumb32 multiply_divide |
 | A5-29 SMULL/UMULL/SMLAL/UMLAL | I D | test_thumb32 multiply_divide; libgcc |
 | A5-29 SDIV/UDIV | I D | test_thumb32 zero divisor, signed overflow; compiled programs |
-| A5-25/26/27/28/29 DSP extension entries | rejected | exhaustive rejection audit pending |
-| A5-30 coprocessor, A6 floating point | rejected D | test_thumb32 control (coprocessor); other forms pending |
+| A5-25/26/27/28/29 DSP extension entries | rejected D | test_decode_guards, 90 assembled DSP representatives |
+| A5-30 coprocessor, A6 floating point | rejected D | test_decode_guards, all first-halfword allocations |
 
 ## Explicit architectural hazards
 
@@ -116,8 +120,9 @@ not establish oracle conformance.
 - [x] Q flag saturation; APSR read/write and unsupported selector.
 - [x] Local monitor success, failed second STREX, CLREX, byte/halfword width.
 - [x] Nested callbacks with >=3 levels and outer register/flag restoration.
-- [ ] Directed coverage for every row/form and invalid register combination above.
+- [x] Every in-scope encoding family mapped to directed/oracle tests; representative invalid-register and reserved-bit guards.
 - [x] Unicorn vectors generated/replayed, >=100,000 valid ALU cases.
-- [ ] Oracle sampler expanded to every memory/control/data-processing class.
-- [ ] Explicit classified random UNDEF oracle comparisons.
-- [ ] Remote CI matrix green; performance/cache work can then begin.
+- [x] Oracle sampler expanded to memory/control/data-processing classes, including full-state replay.
+- [x] Explicit classified random UNDEF oracle comparisons (A5 table holes only).
+- [x] Local macOS/Linux GCC/Clang validation available; remote CI awaits a published repository.
+- [ ] Performance/cache work and final repeated matrix validation.
