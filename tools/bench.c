@@ -25,6 +25,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     SamsaRegion region = {0x1000, 65536, mem, SAMSA_R | SAMSA_W | SAMSA_X};
+    const SamsaHook done = {SAMSA_RETURN_PC, UINT32_MAX};
     SamsaCpu c;
     uint64_t total = 0;
     clock_t begin = clock();
@@ -37,11 +38,12 @@ int main(int argc, char **argv) {
         c.r[13] = 0x11000;
         c.r[14] = SAMSA_RETURN_PC | 1u;
         c.r[15] = 0x1000;
-        c._calling = 1;
+        c.hooks = &done;
+        c.num_hooks = 1;
         uint32_t n;
         SamsaStop stop = samsa_run(&c, 1000000, &n);
         total += n;
-        if (stop != SAMSA_STOP_RETURN) {
+        if (stop != SAMSA_STOP_HOOK) {
             fprintf(stderr, "stop %u at %08x\n", stop, c.fault_pc);
             free(mem);
             return 1;

@@ -15,4 +15,5 @@ for name in suite hooks; do
     -Wl,-T,tests/programs/link.ld,-e,"$entry",--build-id=none \
     "tests/programs/$name.c" -lgcc -o "$build/$name.elf"
   "$objcopy" -O binary "$build/$name.elf" "tests/programs/$name.bin"
+  chmod 644 "tests/programs/$name.bin"
 done

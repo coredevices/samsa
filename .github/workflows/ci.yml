@@ -1,0 +1,62 @@
+# SPDX-FileCopyrightText: 2026 Joshua Jun
+# SPDX-License-Identifier: Apache-2.0
+name: CI
+on: [push, pull_request]
+jobs:
+  host:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        compiler: [gcc, clang]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select compiler
+        shell: bash
+        run: |
+          compiler=${{ matrix.compiler }}
+          if [[ "$RUNNER_OS" == macOS && "$compiler" == gcc ]]; then
+            brew list gcc >/dev/null 2>&1 || brew install gcc
+            compiler=$(find "$(brew --prefix)/bin" -name 'gcc-[0-9]*' | sort | tail -1)
+          fi
+          echo "CC=$compiler" >> "$GITHUB_ENV"
+      - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build --parallel
+      - run: ctest --test-dir build --output-on-failure
+  sanitize:
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build -DSAMSA_SANITIZE=ON
+      - run: cmake --build build --parallel
+      - run: ctest --test-dir build --output-on-failure
+      - run: cmake -S . -B build-fuzz -DSAMSA_BUILD_TESTS=OFF -DSAMSA_BUILD_FUZZ=ON
+      - run: cmake --build build-fuzz --parallel
+      - run: build-fuzz/samsa_fuzz -runs=100000 -max_len=1100
+  cross:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi
+      - run: tools/check_portability.sh
+      - run: tools/build_programs.sh
+      - run: cmake -S . -B build && cmake --build build --parallel && ctest --test-dir build --output-on-failure
+  oracle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install unicorn==2.1.4 ruff==0.14.0
+      - run: ruff check tools && ruff format --check tools
+      - run: python tools/gen_vectors.py --producer unicorn
+      - run: cmake -S . -B build && cmake --build build --parallel && ctest --test-dir build --output-on-failure
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oracle-vectors
+          path: tests/vectors/unicorn.*
