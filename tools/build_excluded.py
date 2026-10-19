@@ -30,9 +30,8 @@ def instructions():
     add("pkhtb", "r0, r1, r2, asr #8")
     for name in ["ssat16", "usat16"]:
         add(name, "r0, #8, r1")
+    # SMLA<x><y> and SMUL<x><y> are implemented: Cortex-M4 app builds use them.
     for suffix in ["bb", "bt", "tb", "tt"]:
-        add("smla" + suffix, "r0, r1, r2, r3")
-        add("smul" + suffix)
         add("smlal" + suffix, "r0, r3, r1, r2")
     for name in [
         "smlad",

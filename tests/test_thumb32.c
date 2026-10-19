@@ -172,6 +172,19 @@ static void memory(void) {
     f.c.r[2] = 0x00ff8000;
     EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_BUDGET);
     EQ(f.c.r[0], 0xffffff8a);
+    /* smulbb r7, r5, r5; smlatb r0, r1, r2, r3, overflowing into Q (ARMv7E-M) */
+    init(&f);
+    CODE(&f, 0xfb15, 0xf705, 0xfb11, 0x3022);
+    f.c.r[5] = 0xffff8000;
+    f.c.r[1] = 0x7fff0000;
+    f.c.r[2] = 2;
+    f.c.r[3] = 0x7fffffff;
+    EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_BUDGET);
+    EQ(f.c.r[7], 0x40000000);
+    EQ(samsa_get_xpsr(&f.c) >> 27 & 1u, 0);
+    EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_BUDGET);
+    EQ(f.c.r[0], 0x8000fffd);
+    EQ(samsa_get_xpsr(&f.c) >> 27 & 1u, 1);
     /* STRD may store one register twice; LDRD may not load one twice. */
     init(&f);
     CODE(&f, 0xe9c7, 0x3302, 0xe9d7, 0x3302);

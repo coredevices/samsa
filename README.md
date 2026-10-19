@@ -9,7 +9,7 @@ an unfamiliar CPU.
 Samsa supplies execution, memory permissions, hooks, and host/guest calls.
 The embedder supplies the bytes, memory map, stack, and host functions.
 There is no loader, allocator, OS, exception controller, FPU, ARM/A32, or DSP
-extension beyond SXTAB/SXTAH/UXTAB/UXTAH. The core uses only the four permitted standard headers and has
+extension beyond SXTAB/SXTAH/UXTAB/UXTAH and SMLA<x><y>/SMUL<x><y>. The core uses only the four permitted standard headers and has
 no global state. Each CPU is independent.
 
 ## Build

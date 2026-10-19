@@ -370,6 +370,19 @@ static bool multiply(SamsaCpu *c, uint16_t h, uint16_t l) {
         put(c, d, l & 16u ? acc - product : acc + product);
         return true;
     }
+    if ((h & 0xfff0u) == 0xfb10u && (l & 0xc0u) == 0) {
+        /* ARMv7E-M SMLA<x><y>/SMUL<x><y>, which Cortex-M4 builds of real
+           apps use for fixed-point math. */
+        if (a == 13)
+            return undef(c);
+        int32_t x = (int16_t)(l & 32u ? c->r[n] >> 16 : c->r[n]);
+        int32_t y = (int16_t)(l & 16u ? c->r[m] >> 16 : c->r[m]);
+        int64_t v = (int64_t)(x * y) + (a == 15 ? 0 : (int32_t)c->r[a]);
+        if (v != (int32_t)v)
+            c->_flags |= Q;
+        put(c, d, (uint32_t)v);
+        return true;
+    }
     unsigned op = h >> 4 & 7u;
     if ((h & 0xffd0u) == 0xfb90u && (l & 0xf0f0u) == 0xf0f0u) {
         uint32_t x = c->r[n], y = c->r[m], v = 0;
