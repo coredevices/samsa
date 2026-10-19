@@ -250,7 +250,8 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
     if ((h & 0xff00u) == 0xbf00u) {
         if (!(h & 15u))
             return true;
-        if (it || (h >> 4 & 15u) == 15u || ((h >> 4 & 15u) == 14u && (h & 7u)))
+        if (it || (h >> 4 & 15u) == 15u ||
+            ((h >> 4 & 15u) == 14u && ((h & 15u) & ((h & 15u) - 1u))))
             return undef(c);
         c->itstate = (uint8_t)h;
         return true;

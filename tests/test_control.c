@@ -109,6 +109,17 @@ static void it_resume(void) {
     EQ(samsa_run(&f.c, 10, NULL), SAMSA_STOP_BKPT);
     EQ(f.c.r[2], 8);
     EQ(f.c.itstate, 0);
+    for (unsigned mask = 1, slots = 4; mask <= 8; mask <<= 1, --slots) {
+        init(&f);
+        CODE(&f, 0xbfe0u | mask, 0x3001, 0x3001, 0x3001, 0x3001);
+        f.c.r[0] = UINT32_MAX;
+        samsa_set_xpsr(&f.c, 0xf8000000);
+        EQ(samsa_run(&f.c, slots + 1, NULL), SAMSA_STOP_BUDGET);
+        EQ(f.c.r[0], slots - 1);
+        EQ(f.c.itstate, 0);
+        EQ(samsa_get_xpsr(&f.c) >> 27, 31);
+    }
+    f.c.r[1] = 7;
     Fixture other;
     init(&other);
     CODE(&other, 0x2009);
