@@ -9,9 +9,14 @@ records the producer/version, seed, family counts, manual expectations, and hash
 The `--suite sequences` profile produces `sequences.bin`/`.json`: 10,000 sequences
 across 20 families. These compose narrow/wide ALU operations, carry dependencies,
 all IT masks with changing flags, memory operations, MRS/MSR and sticky Q.
+The `--suite dsp` profile produces `dsp.bin`/`.json` on Unicorn's Cortex-M4
+model: 20,000 cases across 93 families covering every ARMv7E-M DSP instruction,
+the APSR_g MSR masks, and reserved DSP encodings. Each valid case first runs
+`msr APSR_nzcvqg, r12` with random r12, so NZCVQ and GE inputs vary, and
+operands mix random words with saturation and sign boundaries.
 
 Replay needs no Python, assembler, or emulator library. `test_arch_vectors` checks
-all sixteen registers, NZCVQ and ITSTATE, the stop/payload, and every mapped byte.
+all sixteen registers, NZCVQ, GE and ITSTATE, the stop/payload, and every mapped byte.
 Each case runs both with one continuous budget and with one-instruction budgets
 to exercise ITSTATE and exclusive-monitor resumption. Cache-enabled builds repeat
 both modes with the previous replay's instruction cache retained, while restoring
@@ -40,8 +45,9 @@ memory spans `[0x1000,0x2000)`, and instructions start at `0x1100`. Memory start
 as a repeated 64-byte block generated from `seed XOR 0x9e3779b9`, taking sixteen
 successive LCG words. Instructions and initial patches are applied afterward.
 Sparse expected changes preserve a compact file while replay still compares
-all 4 KiB. The xPSR comparison mask is `0xff00fc00` (NZCVQ, T, split ITSTATE).
+all 4 KiB. The xPSR comparison mask is `0xff0ffc00` (NZCVQ, GE, T, split
+ITSTATE). GE is always zero in the Cortex-M3 corpora.
 
 See [oracle disputes](../tests/vectors/disputes.md) for the exact four hint
-limitations and undefined-stop normalization. No broad instruction-family
+limitations, the SMLAD Q override, and undefined-stop normalization. No broad instruction-family
 exceptions or UNPREDICTABLE encodings are included in the comparison.

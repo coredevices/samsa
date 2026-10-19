@@ -99,7 +99,7 @@ static void replay(const char *path, uint32_t minimum) {
                     break;
             }
             bool fail = actual != stop || f.c.stop_info != info ||
-                        (samsa_get_xpsr(&f.c) & 0xff00fc00u) != xpsr ||
+                        (samsa_get_xpsr(&f.c) & 0xff0ffc00u) != xpsr ||
                         memcmp(expected, f.c.r, sizeof(expected)) ||
                         memcmp(expected_memory, f.mem, 4096);
             if (fail) {
@@ -137,6 +137,7 @@ int main(int argc, char **argv) {
     else {
         replay(SAMSA_SOURCE_DIR "/tests/vectors/architecture.bin", 100000);
         replay(SAMSA_SOURCE_DIR "/tests/vectors/sequences.bin", 10000);
+        replay(SAMSA_SOURCE_DIR "/tests/vectors/dsp.bin", 20000);
     }
     return 0;
 }

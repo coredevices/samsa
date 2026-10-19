@@ -614,3 +614,154 @@ def sequence_catalog():
     result += [(f"sequence.it.{mask}", partial(sequence_it, mask)) for mask in range(1, 16)]
     result += [("sequence.memory", sequence_memory), ("sequence.apsr", sequence_apsr)]
     return result
+
+
+# ARMv7E-M DSP families, run on Unicorn's Cortex-M4 model. Each valid case first
+# sets random NZCVQ and GE with 'msr APSR_nzcvqg, r12' so GE inputs vary too.
+DSP_REGS = [*range(12), 14]
+MSR_GE = (0xF38C, 0x8C00)
+
+
+def dsp_operand(rng):
+    kind = rng.randrange(4)
+    if kind == 0:
+        return rng.getrandbits(32)
+    if kind == 1:
+        return rng.choice([0, 1, 0x7FFFFFFF, 0x80000000, 0xFFFFFFFF, 0x7FFF8000, 0x80008000])
+    if kind == 2:
+        halves = [0, 1, 0x7FFF, 0x8000, 0x8001, 0xFFFF, rng.getrandbits(16)]
+        return rng.choice(halves) << 16 | rng.choice(halves)
+    lanes = [0, 1, 0x7F, 0x80, 0x81, 0xFF, rng.getrandbits(8)]
+    return sum(rng.choice(lanes) << shift for shift in range(0, 32, 8))
+
+
+def dsp_case(first, second, registers, rng):
+    regs = {12: rng.getrandbits(32)}
+    for register in registers:
+        regs[register] = dsp_operand(rng)
+    return Case((*MSR_GE, first, second), regs, steps=2)
+
+
+def dsp_register(first, op2, rng):
+    """A5.3.12-A5.3.15 three-register forms: Rd, Rn, Rm."""
+    d, n, m = (rng.choice(DSP_REGS) for _ in range(3))
+    return dsp_case(first | n, 0xF000 | d << 8 | op2 << 4 | m, (n, m), rng)
+
+
+def dsp_extend(op, add, rng):
+    d, n, m = (rng.choice(DSP_REGS) for _ in range(3))
+    n = n if add else 15
+    second = 0xF080 | d << 8 | rng.randrange(4) << 4 | m
+    return dsp_case(0xFA00 | op << 4 | n, second, (m, n) if add else (m,), rng)
+
+
+def dsp_saturate16(unsigned, rng):
+    d, n = rng.choice(DSP_REGS), rng.choice(DSP_REGS)
+    return dsp_case((0xF3A0 if unsigned else 0xF320) | n, d << 8 | rng.randrange(16), (n,), rng)
+
+
+def dsp_pack(tb, rng):
+    d, n, m = (rng.choice(DSP_REGS) for _ in range(3))
+    amount = rng.randrange(32)
+    second = (amount >> 2) << 12 | d << 8 | (amount & 3) << 6 | tb << 5 | m
+    return dsp_case(0xEAC0 | n, second, (n, m), rng)
+
+
+def dsp_multiply(op1, op2, accumulate, rng):
+    d, n, m, a = (rng.choice(DSP_REGS) for _ in range(4))
+    a = a if accumulate else 15
+    second = a << 12 | d << 8 | op2 << 4 | m
+    return dsp_case(0xFB00 | op1 << 4 | n, second, (n, m, a) if accumulate else (n, m), rng)
+
+
+def dsp_long(op1, op2, rng):
+    low, high = rng.sample(DSP_REGS, 2)
+    n, m = rng.choice(DSP_REGS), rng.choice(DSP_REGS)
+    second = low << 12 | high << 8 | op2 << 4 | m
+    return dsp_case(0xFB80 | op1 << 4 | n, second, (n, m, low, high), rng)
+
+
+def dsp_msr(mask, rng):
+    """MSR APSR_g/APSR_nzcvqg from r0, then MRS reads all of APSR back into r1."""
+    case = dsp_case(0xF380, 0x8000 | mask << 10, (0,), rng)
+    return Case((*case.code, 0xF3EF, 0x8100), case.regs, steps=3)
+
+
+def dsp_reserved(rng):
+    """Holes in the DSP rows of A5.3.12-A5.3.17 with otherwise valid registers."""
+    n, d, m = 1, 0, 2
+    choice = rng.randrange(6)
+    if choice == 0:  # Parallel op1 011 or 111.
+        return Case((0xFA80 | rng.choice([3, 7]) << 4 | n, 0xF000 | d << 8 | m), undefined=True)
+    if choice == 1:  # Parallel prefix 11.
+        op1, op2 = rng.choice([0, 1, 2, 4, 5, 6]), rng.choice([3, 7])
+        return Case((0xFA80 | op1 << 4 | n, 0xF000 | d << 8 | op2 << 4 | m), undefined=True)
+    if choice == 2:  # Miscellaneous op2 other than 00 for SEL and CLZ.
+        op1 = rng.choice([2, 3])
+        return Case(
+            (0xFA80 | op1 << 4 | n, 0xF080 | d << 8 | rng.randrange(1, 4) << 4 | m),
+            undefined=True,
+        )
+    if choice == 3:  # Multiply op1 010-111 with op2 1x, or USAD8 with op2 01.
+        op1 = rng.randrange(2, 8)
+        op2 = 1 if op1 == 7 and rng.randrange(2) else rng.choice([2, 3])
+        return Case((0xFB00 | op1 << 4 | n, 0x3000 | d << 8 | op2 << 4 | m), undefined=True)
+    if choice == 4:  # Extend op1 011x.
+        return Case((0xFA60 | rng.randrange(2) << 4 | n, 0xF080 | d << 8 | m), undefined=True)
+    allocated = {(0, 0), (2, 0), (4, 0), (6, 0), (1, 15), (3, 15), (6, 6)}
+    allocated |= {(4, op2) for op2 in range(8, 14)} | {(5, 12), (5, 13)}
+    while True:  # Long multiply op1/op2 holes.
+        op1, op2 = rng.randrange(8), rng.randrange(16)
+        if (op1, op2) not in allocated:
+            break
+    return Case((0xFB80 | op1 << 4 | n, 0x3400 | op2 << 4 | m), undefined=True)
+
+
+def dsp_catalog():
+    result = []
+
+    def add(name, function, *args):
+        result.append((name, partial(function, *args)))
+
+    lanes = [(0, "add8"), (1, "add16"), (2, "asx"), (4, "sub8"), (5, "sub16"), (6, "sax")]
+    for unsigned, prefixes in enumerate([["s", "q", "sh"], ["u", "uq", "uh"]]):
+        for kind, prefix in enumerate(prefixes):
+            for op1, name in lanes:
+                add(f"dsp.{prefix}{name}", dsp_register, 0xFA80 | op1 << 4, unsigned << 2 | kind)
+    for op2, name in enumerate(["qadd", "qdadd", "qsub", "qdsub"]):
+        add(f"dsp.{name}", dsp_register, 0xFA80, 8 | op2)
+    add("dsp.sel", dsp_register, 0xFAA0, 8)
+    for op, name in enumerate(["sxtah", "uxtah", "sxtab16", "uxtab16", "sxtab", "uxtab"]):
+        add(f"dsp.{name}", dsp_extend, op, True)
+    for op, name in [(2, "sxtb16"), (3, "uxtb16")]:
+        add(f"dsp.{name}", dsp_extend, op, False)
+    for unsigned, name in enumerate(["ssat16", "usat16"]):
+        add(f"dsp.{name}", dsp_saturate16, unsigned)
+    for tb, name in enumerate(["pkhbt", "pkhtb"]):
+        add(f"dsp.{name}", dsp_pack, tb)
+    for op2, xy in enumerate(["bb", "bt", "tb", "tt"]):
+        add(f"dsp.smla{xy}", dsp_multiply, 1, op2, True)
+        add(f"dsp.smul{xy}", dsp_multiply, 1, op2, False)
+    for op1, names in [
+        (2, ["smlad", "smuad"]),
+        (3, ["smlaw", "smulw"]),
+        (4, ["smlsd", "smusd"]),
+        (5, ["smmla", "smmul"]),
+    ]:
+        for op2, suffix in enumerate(["b", "t"] if op1 == 3 else ["", "x" if op1 < 5 else "r"]):
+            add(f"dsp.{names[0]}{suffix}", dsp_multiply, op1, op2, True)
+            add(f"dsp.{names[1]}{suffix}", dsp_multiply, op1, op2, False)
+    for op2, suffix in enumerate(["", "r"]):
+        add(f"dsp.smmls{suffix}", dsp_multiply, 6, op2, True)
+    add("dsp.usada8", dsp_multiply, 7, 0, True)
+    add("dsp.usad8", dsp_multiply, 7, 0, False)
+    for op2, xy in enumerate(["bb", "bt", "tb", "tt"]):
+        add(f"dsp.smlal{xy}", dsp_long, 4, 8 | op2)
+    for op1, name in [(4, "smlald"), (5, "smlsld")]:
+        for op2, suffix in enumerate(["", "x"]):
+            add(f"dsp.{name}{suffix}", dsp_long, op1, 12 | op2)
+    add("dsp.umaal", dsp_long, 6, 6)
+    for mask, name in [(1, "g"), (3, "nzcvqg")]:
+        add(f"dsp.msr.{name}", dsp_msr, mask)
+    add("dsp.reserved", dsp_reserved)
+    return result

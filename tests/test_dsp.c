@@ -155,6 +155,9 @@ static void multiplies(void) {
          {32, 0x00030002, 0x00050004, 10}, T},
         {"smlad Q", 0xfb21, 0x3002, {0, 0x00010001, 0x00010001, 0x7fffffff}, 0,
          {0x80000001, 0x00010001, 0x00010001, 0x7fffffff}, T | QF},
+        /* Q follows the final sum only, even when the products alone overflow. */
+        {"smlad no Q", 0xfb21, 0x3002, {0, 0x80008000, 0x80008000, 0x80000000}, 0,
+         {0, 0x80008000, 0x80008000, 0x80000000}, T},
         {"smuad Q", 0xfb21, 0xf002, {0, 0x80008000, 0x80008000, 0}, 0,
          {0x80000000, 0x80008000, 0x80008000, 0}, T | QF},
         {"smuadx", 0xfb21, 0xf012, {0, 0xffff0002, 0x00030004, 0}, 0xf0000000 | GE(3),

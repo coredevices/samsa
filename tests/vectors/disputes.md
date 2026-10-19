@@ -20,6 +20,21 @@ These four operand-free encodings form the complete allow-list in
 expectations per family in `architecture.json`; they are not silent oracle
 agreements. Any other error in a valid instruction case stops generation.
 
+The DSP corpus (`dsp.bin`) runs on Unicorn's Cortex-M4 model and has one
+further manual-derived expectation, counted per family as
+`manual_smlad_q_overrides` in `dsp.json`:
+
+| Encoding | Expected behavior | ARM reference | Reason |
+| --- | --- | --- | --- |
+| SMLAD/SMLADX T1 with Ra | Q unchanged when only the product sum overflows | DDI 0403E.b SMLAD pseudocode | Unicorn 2.1.4 (QEMU 5.0) also sets Q on the intermediate sum |
+
+The pseudocode adds both products and the accumulator as unbounded integers and
+sets Q only if that final result does not fit in 32 bits. The two products only
+overflow on their own when all four halfwords are -32768, so the generator
+recognizes exactly that input (`smlad_q_dispute`) and keeps the Q value the
+preceding MSR wrote. All result registers still come from Unicorn. `test_dsp`
+asserts the same case directly.
+
 For architecturally undefined encodings, a Unicorn undefined-instruction error
 or exception/debug event is normalized to Samsa's UNDEF stop at the instruction,
 without exception entry. General registers must remain unchanged. This is the
