@@ -26,7 +26,8 @@ tracked in the coverage checklist.
   without relying on overflowing signed host arithmetic.
 * ITSTATE survives budget/hook stops and advances for skipped instructions.
   Implicit 16-bit flag updates are suppressed inside IT; compare/test operations
-  still update flags. Explicit 32-bit S bits update flags. Branches are checked
+  still update flags. Explicit 32-bit S bits update flags. BKPT executes
+  unconditionally even when the IT condition fails. Branches are checked
   against the last IT slot when executed.
 * NOP/YIELD/WFE/WFI/SEV/DBG and DMB/DSB/ISB have no side effects. There are no host
   memory-ordering guarantees. PLD/PLI do not touch memory or fault.

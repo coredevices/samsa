@@ -119,6 +119,15 @@ static void it_resume(void) {
         EQ(f.c.itstate, 0);
         EQ(samsa_get_xpsr(&f.c) >> 27, 31);
     }
+    init(&f);
+    CODE(&f, 0xbf04, 0xbe42, 0x2107, 0xbe00);
+    EQ(samsa_run(&f.c, 10, NULL), SAMSA_STOP_BKPT);
+    EQ(f.c.stop_info, 0x42);
+    EQ(f.c.r[15], 0x1004);
+    EQ(f.c.itstate, 8);
+    EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_BUDGET);
+    EQ(f.c.r[1], 0);
+    EQ(f.c.itstate, 0);
     f.c.r[1] = 7;
     Fixture other;
     init(&other);

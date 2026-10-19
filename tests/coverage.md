@@ -104,7 +104,7 @@ not exhaustive encoding coverage. A mark is not an oracle-conformance claim.
 
 - [x] PC + 4 and aligned literal/ADR; PC-relative table branch.
 - [x] ALU versus exchange PC writes; even exchange faults; hooks before fetch.
-- [x] IT condition failure, implicit flag suppression, budget resume, early branch rejection.
+- [x] IT condition failure, implicit flag suppression, budget/hook resume, early branch rejection, unconditional BKPT.
 - [x] Shift carry 0/32/>32, RRX, rotated versus replicated modified immediates.
 - [x] Add carry/overflow and subtract NOT-borrow.
 - [x] Thumb-16 base-in-list LDM/STM handling.

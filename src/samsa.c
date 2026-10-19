@@ -48,7 +48,7 @@ SamsaStop samsa_run(SamsaCpu *c, uint32_t max, uint32_t *executed) {
         uint8_t it = c->itstate;
         c->r[15] = pc + (wide ? 4u : 2u);
         bool ok = true;
-        if (!it || condition(c, it >> 4))
+        if (!it || condition(c, it >> 4) || (!wide && (h & 0xff00u) == 0xbe00u))
             ok = wide ? decode32(c, (uint16_t)h, (uint16_t)l, pc)
                       : decode16(c, (uint16_t)h, pc, it != 0);
         ++count;
