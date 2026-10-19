@@ -21,6 +21,13 @@ static SamsaStop stalled(SamsaCpu *c, SamsaStop why, void *ctx) {
     (void)ctx;
     return SAMSA_STOP_BUDGET;
 }
+static bool crossing_bus(SamsaCpu *c, uint32_t addr, unsigned size, uint32_t *out) {
+    (void)addr;
+    (void)size;
+    ++*(unsigned *)c->user;
+    *out = 123;
+    return true;
+}
 int main(void) {
     Fixture f;
     init(&f);
@@ -40,7 +47,10 @@ int main(void) {
     f.c.r[0] = 123;
     f.c.r[15] = 0x1234;
     f.c.r[14] = 0x5679;
-    samsa_set_xpsr(&f.c, 0xf8000000);
+    samsa_set_xpsr(&f.c, 0xf8000800);
+    f.c.stop_info = 0xab;
+    f.c.fault_pc = 0xdead;
+    f.c.fault_addr = 0xbeef;
     uint32_t args[] = {7, 11}, ret = 0;
     EQ(samsa_call(&f.c, 0x1001, args, 2, &ret, NULL, NULL), SAMSA_STOP_RETURN);
     EQ(ret, 18);
@@ -48,6 +58,10 @@ int main(void) {
     EQ(f.c.r[15], 0x1234);
     EQ(f.c.r[14], 0x5679);
     EQ(samsa_get_xpsr(&f.c) >> 27, 31);
+    EQ(f.c.itstate, 8);
+    EQ(f.c.stop_info, 0xab);
+    EQ(f.c.fault_pc, 0xdead);
+    EQ(f.c.fault_addr, 0xbeef);
     EQ(samsa_call(&f.c, 0x1000, args, 2, &ret, NULL, NULL), SAMSA_STOP_USAGE);
     init(&f);
     CODE(&f, 0x9800, 0x9901, 0x1840, 0x4770);
@@ -87,5 +101,18 @@ int main(void) {
     EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_MEMFAULT);
     EQ(f.c.fault_addr, 0xfffffffe);
     EQ(f.c.fault_pc, 0x1000);
+    init(&f);
+    CODE(&f, 0x6808);
+    f.c.r[1] = 0x1ffe;
+    const SamsaBus boundary_bus = {crossing_bus, NULL};
+    unsigned accesses = 0;
+    f.c.bus = &boundary_bus;
+    f.c.user = &accesses;
+    EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_MEMFAULT);
+    EQ(accesses, 0);
+    f.c.r[1] = 0x4000;
+    EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_BUDGET);
+    EQ(accesses, 1);
+    EQ(f.c.r[0], 123);
     return 0;
 }

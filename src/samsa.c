@@ -87,6 +87,7 @@ uint64_t samsa_arg64(SamsaCpu *c, unsigned i) {
     uint32_t lo = samsa_arg(c, i), hi = samsa_arg(c, i + 1u);
     return (uint64_t)hi << 32 | lo;
 }
+SamsaStop samsa_status(const SamsaCpu *c) { return (SamsaStop)c->_stop; }
 void samsa_return32(SamsaCpu *c, uint32_t v) {
     c->r[0] = v;
     (void)branch(c, c->r[14], true);
@@ -98,7 +99,8 @@ void samsa_return64(SamsaCpu *c, uint64_t v) {
 SamsaStop samsa_call_budget(SamsaCpu *c, uint32_t fn, const uint32_t *args, unsigned nargs,
                             uint32_t *ret, SamsaStopHandler h, void *ctx, uint32_t budget) {
     uint32_t saved[16], xpsr = samsa_get_xpsr(c);
-    uint8_t calling = c->_calling, stop = c->_stop;
+    uint8_t calling = c->_calling, stop = c->_stop, stop_info = c->stop_info;
+    uint32_t fault_pc = c->fault_pc, fault_addr = c->fault_addr;
     memcpy(saved, c->r, sizeof(saved));
     c->_calling = 1;
     c->itstate = 0;
@@ -151,7 +153,11 @@ done:
     samsa_set_xpsr(c, xpsr);
     c->_calling = calling;
     c->_stop = stop;
-    c->_exclusive_size = 0;
+    if (result == SAMSA_STOP_RETURN) {
+        c->stop_info = stop_info;
+        c->fault_pc = fault_pc;
+        c->fault_addr = fault_addr;
+    }
     return result;
 }
 SamsaStop samsa_call(SamsaCpu *c, uint32_t fn, const uint32_t *args, unsigned nargs, uint32_t *ret,

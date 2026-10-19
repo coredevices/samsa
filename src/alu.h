@@ -26,6 +26,9 @@ bool branch(SamsaCpu *c, uint32_t addr, bool exchange);
 bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool in_it);
 bool decode32(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc);
 bool multiple(SamsaCpu *c, unsigned rn, uint32_t list, bool load, bool db, bool wb);
+static inline void put(SamsaCpu *c, unsigned r, uint32_t value) {
+    c->r[r] = r == 13 ? value & ~3u : value;
+}
 static inline uint32_t reg(const SamsaCpu *c, unsigned r, uint32_t pc) {
     return r == 15 ? pc + 4u : c->r[r];
 }

@@ -50,6 +50,7 @@ typedef struct SamsaCpu {
 /* Reset clears the entire struct, including configuration pointers. */
 void samsa_reset(SamsaCpu *cpu);
 SamsaStop samsa_run(SamsaCpu *cpu, uint32_t max_insns, uint32_t *executed);
+SamsaStop samsa_status(const SamsaCpu *cpu);
 uint32_t samsa_get_xpsr(const SamsaCpu *cpu);
 void samsa_set_xpsr(SamsaCpu *cpu, uint32_t xpsr);
 uint32_t samsa_arg(SamsaCpu *cpu, unsigned word_index);

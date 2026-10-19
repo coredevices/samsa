@@ -48,14 +48,14 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
         if (type && !amount)
             amount = 32;
         v = shift(c->r[n], type, amount, &cy);
-        c->r[d] = v;
+        put(c, d, v);
         if (!it)
             nzc(c, v, cy);
         return true;
     }
     if (h < 0x2000u) {
         b = h & 0x400u ? m : c->r[m];
-        c->r[d] = add_c(c, c->r[n], h & 0x200u ? ~b : b, (h >> 9) & 1u, !it);
+        put(c, d, add_c(c, c->r[n], h & 0x200u ? ~b : b, (h >> 9) & 1u, !it));
         return true;
     }
     if (h < 0x4000u) {
@@ -63,7 +63,7 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
         b = h & 255u;
         switch (h >> 11 & 3u) {
         case 0:
-            c->r[d] = b;
+            put(c, d, b);
             if (!it)
                 nz(c, b);
             break;
@@ -71,10 +71,10 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
             (void)add_c(c, c->r[d], ~b, 1, true);
             break;
         case 2:
-            c->r[d] = add_c(c, c->r[d], b, 0, !it);
+            put(c, d, add_c(c, c->r[d], b, 0, !it));
             break;
         case 3:
-            c->r[d] = add_c(c, c->r[d], ~b, 1, !it);
+            put(c, d, add_c(c, c->r[d], ~b, 1, !it));
             break;
         }
         return true;
@@ -95,21 +95,21 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
         case 4:
         case 7:
             v = shift(a, (h >> 6 & 15u) == 7 ? 3 : (h >> 6 & 15u) - 2u, b & 255u, &cy);
-            c->r[d] = v;
+            put(c, d, v);
             if (flags)
                 nzc(c, v, cy);
             return true;
         case 5:
-            c->r[d] = add_c(c, a, b, cy, flags);
+            put(c, d, add_c(c, a, b, cy, flags));
             return true;
         case 6:
-            c->r[d] = add_c(c, a, ~b, cy, flags);
+            put(c, d, add_c(c, a, ~b, cy, flags));
             return true;
         case 8:
             nz(c, a & b);
             return true;
         case 9:
-            c->r[d] = add_c(c, ~b, 0, 1, flags);
+            put(c, d, add_c(c, ~b, 0, 1, flags));
             return true;
         case 10:
             (void)add_c(c, a, ~b, 1, true);
@@ -130,7 +130,7 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
             v = ~b;
             break;
         }
-        c->r[d] = v;
+        put(c, d, v);
         if (flags)
             nz(c, v);
         return true;
@@ -161,7 +161,7 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
         }
         if (d == 15)
             return branch(c, v, false);
-        c->r[d] = v;
+        put(c, d, v);
         return true;
     }
     if ((h & 0xf800u) == 0x4800u) {
@@ -178,7 +178,7 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
             return mem_write(c, addr, size, c->r[d]);
         if (!mem_read(c, addr, size, SAMSA_R, &v))
             return false;
-        c->r[d] = op == 3 ? sx(v, 8) : op == 7 ? sx(v, 16) : v;
+        put(c, d, op == 3 ? sx(v, 8) : op == 7 ? sx(v, 16) : v);
         return true;
     }
     if ((h & 0xe000u) == 0x6000u || (h & 0xf000u) == 0x8000u) {
@@ -227,7 +227,7 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
             v &= 255u;
             break;
         }
-        c->r[d] = v;
+        put(c, d, v);
         return true;
     }
     if ((h & 0xf600u) == 0xb400u) {
@@ -239,7 +239,7 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
         unsigned op = h >> 6 & 3u;
         if (op == 2)
             return undef(c);
-        c->r[d] = reverse(c->r[n], op);
+        put(c, d, reverse(c->r[n], op));
         return true;
     }
     if ((h & 0xff00u) == 0xbe00u) {

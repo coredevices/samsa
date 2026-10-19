@@ -12,6 +12,15 @@ static const SamsaRegion *region(SamsaCpu *c, uint32_t a, unsigned size) {
     }
     return NULL;
 }
+static bool intersects(const SamsaCpu *c, uint32_t a, unsigned size) {
+    for (unsigned i = 0; i < c->num_regions; ++i) {
+        const SamsaRegion *r = &c->regions[i];
+        if (r->size &&
+            (a >= r->guest_base ? a - r->guest_base < r->size : r->guest_base - a < size))
+            return true;
+    }
+    return false;
+}
 static bool fault(SamsaCpu *c, uint32_t a) {
     c->fault_addr = a;
     c->_stop = SAMSA_STOP_MEMFAULT;
@@ -33,9 +42,11 @@ bool mem_read(SamsaCpu *c, uint32_t a, unsigned size, unsigned perm, uint32_t *v
         return true;
     }
     /* Bus is data-only: execute permission must come from a region. */
-    if (perm != SAMSA_X && a <= UINT32_MAX - (size - 1u) && c->bus && c->bus->read &&
-        c->bus->read(c, a, size, v))
+    if (perm != SAMSA_X && !intersects(c, a, size) && a <= UINT32_MAX - (size - 1u) && c->bus &&
+        c->bus->read && c->bus->read(c, a, size, v)) {
+        *v &= UINT32_MAX >> ((4u - size) * 8u);
         return true;
+    }
     return fault(c, a);
 }
 bool mem_write(SamsaCpu *c, uint32_t a, unsigned size, uint32_t v) {
@@ -46,7 +57,8 @@ bool mem_write(SamsaCpu *c, uint32_t a, unsigned size, uint32_t v) {
         memcpy(r->host + (a - r->guest_base), &v, size);
         return true;
     }
-    if (a <= UINT32_MAX - (size - 1u) && c->bus && c->bus->write && c->bus->write(c, a, size, v))
+    if (!intersects(c, a, size) && a <= UINT32_MAX - (size - 1u) && c->bus && c->bus->write &&
+        c->bus->write(c, a, size, v))
         return true;
     return fault(c, a);
 }

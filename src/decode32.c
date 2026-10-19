@@ -47,7 +47,7 @@ static bool dp(SamsaCpu *c, unsigned op, unsigned n, unsigned d, uint32_t b, uns
         nzc(c, v, cy);
 result:
     if (!test)
-        c->r[d] = v;
+        put(c, d, v);
     return true;
 }
 static bool control(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
@@ -78,7 +78,7 @@ static bool control(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
         unsigned d = l >> 8 & 15u;
         if (d == 13 || d == 15)
             return undef(c);
-        c->r[d] = (uint32_t)c->_flags << 24;
+        put(c, d, (uint32_t)c->_flags << 24);
         return true;
     }
     if ((h & 0xfff0u) == 0xf380u && l == 0x8800u) {
@@ -111,12 +111,12 @@ static bool plain(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
         return undef(c);
     if (op == 0 || op == 10) {
         v = n == 15 ? (pc + 4u) & ~3u : c->r[n];
-        c->r[d] = op == 0 ? v + imm12 : v - imm12;
+        put(c, d, op == 0 ? v + imm12 : v - imm12);
         return true;
     }
     if (op == 4 || op == 12) {
         v = n << 12 | imm12;
-        c->r[d] = op == 4 ? v : (c->r[d] & 0xffffu) | (v << 16);
+        put(c, d, op == 4 ? v : (c->r[d] & 0xffffu) | (v << 16));
         return true;
     }
     if (n == 15 || n == 13 || d == 13) {
@@ -129,7 +129,7 @@ static bool plain(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
             return undef(c);
         mask = UINT32_MAX >> (32u - width);
         v = (c->r[n] >> amount) & mask;
-        c->r[d] = op == 20 ? sx(v, width) : v;
+        put(c, d, op == 20 ? sx(v, width) : v);
         return true;
     }
     if (op == 22) {
@@ -137,7 +137,7 @@ static bool plain(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
         if ((l & 0x20u) || msb < amount)
             return undef(c);
         mask = (UINT32_MAX >> (31u - msb + amount)) << amount;
-        c->r[d] = (c->r[d] & ~mask) | ((n == 15 ? 0 : c->r[n] << amount) & mask);
+        put(c, d, (c->r[d] & ~mask) | ((n == 15 ? 0 : c->r[n] << amount) & mask));
         return true;
     }
     if (op == 16 || op == 18 || op == 24 || op == 26) {
@@ -157,7 +157,7 @@ static bool plain(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
             value = hi;
             c->_flags |= Q;
         }
-        c->r[d] = (uint32_t)value;
+        put(c, d, (uint32_t)value);
         return true;
     }
     return undef(c);
@@ -184,7 +184,7 @@ static bool dual(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
             c->_exclusive_size = 0;
             if (success && !mem_write(c, addr, 4, c->r[t]))
                 return false;
-            c->r[d] = success ? 0 : 1;
+            put(c, d, success ? 0 : 1);
         }
         return true;
     }
@@ -221,7 +221,7 @@ static bool dual(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
             c->_exclusive_size = 0;
             if (success && !mem_write(c, addr, size, c->r[t]))
                 return false;
-            c->r[d] = success ? 0 : 1;
+            put(c, d, success ? 0 : 1);
         }
         return true;
     }
@@ -242,7 +242,7 @@ static bool dual(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
     } else if (!mem_write(c, addr, 4, c->r[t]) || !mem_write(c, addr + 4u, 4, c->r[t2]))
         return false;
     if (wb)
-        c->r[n] = next;
+        put(c, n, next);
     return true;
 }
 static bool single(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
@@ -293,11 +293,11 @@ static bool single(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
             if (!branch(c, value, true))
                 return false;
         } else
-            c->r[t] = value;
+            put(c, t, value);
     } else if (!mem_write(c, addr, size, c->r[t]))
         return false;
     if (wb)
-        c->r[n] = next;
+        put(c, n, next);
     return true;
 }
 static bool data_reg(SamsaCpu *c, uint16_t h, uint16_t l) {
@@ -310,7 +310,7 @@ static bool data_reg(SamsaCpu *c, uint16_t h, uint16_t l) {
         if (n == 13 || n == 15)
             return undef(c);
         v = shift(c->r[n], op >> 1, c->r[m] & 255u, &cy);
-        c->r[d] = v;
+        put(c, d, v);
         if (op & 1u)
             nzc(c, v, cy);
         return true;
@@ -319,7 +319,7 @@ static bool data_reg(SamsaCpu *c, uint16_t h, uint16_t l) {
         v = shift(c->r[m], 3, (sub & 3u) * 8u, &cy);
         unsigned bits = op < 2 ? 16 : 8;
         v &= UINT32_MAX >> (32u - bits);
-        c->r[d] = op & 1u ? v : sx(v, bits);
+        put(c, d, op & 1u ? v : sx(v, bits));
         return true;
     }
     if ((op == 9 || op == 11) && n == m && sub >= 8 && sub <= 11) {
@@ -347,7 +347,7 @@ static bool data_reg(SamsaCpu *c, uint16_t h, uint16_t l) {
             if (sub == 11)
                 v = sx(v & 0xffffu, 16);
         }
-        c->r[d] = v;
+        put(c, d, v);
         return true;
     }
     return undef(c);
@@ -362,7 +362,7 @@ static bool multiply(SamsaCpu *c, uint16_t h, uint16_t l) {
         if (a == 13)
             return undef(c);
         uint32_t product = c->r[n] * c->r[m], acc = a == 15 ? 0 : c->r[a];
-        c->r[d] = l & 16u ? acc - product : acc + product;
+        put(c, d, l & 16u ? acc - product : acc + product);
         return true;
     }
     unsigned op = h >> 4 & 7u;
@@ -380,7 +380,7 @@ static bool multiply(SamsaCpu *c, uint16_t h, uint16_t l) {
                     v = 0u - v;
             }
         }
-        c->r[d] = v;
+        put(c, d, v);
         return true;
     }
     if (!(h & 128u) || (l & 0xf0u) || (op != 0 && op != 2 && op != 4 && op != 6) || a == 13 ||
@@ -397,7 +397,7 @@ static bool multiply(SamsaCpu *c, uint16_t h, uint16_t l) {
     if (op & 4u)
         product += (uint64_t)c->r[d] << 32 | c->r[a];
     c->r[a] = (uint32_t)product;
-    c->r[d] = (uint32_t)(product >> 32);
+    put(c, d, (uint32_t)(product >> 32));
     return true;
 }
 bool decode32(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
