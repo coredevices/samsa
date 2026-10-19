@@ -151,7 +151,7 @@ bool decode16(SamsaCpu *c, uint16_t h, uint32_t pc, bool it) {
             v = b;
             break;
         default:
-            if ((h & 7u) || n == 15 || !last_it(c))
+            if ((h & 7u) || (n == 15 && (h & 128u)) || !last_it(c))
                 return undef(c);
             if (!branch(c, b, true))
                 return false;

@@ -48,6 +48,14 @@ static void branches(void) {
     samsa_run(&f.c, 1, NULL);
     EQ(f.c.r[0], UINT32_MAX);
     EQ(samsa_get_xpsr(&f.c) >> 28, 8);
+    init(&f);
+    CODE(&f, 0x4778); /* BX pc checks the even PC+4 exchange target. */
+    EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_USAGE);
+    const SamsaHook pc_hook = {0x1004, 0x1006};
+    f.c.hooks = &pc_hook;
+    f.c.num_hooks = 1;
+    EQ(samsa_run(&f.c, 10, NULL), SAMSA_STOP_HOOK);
+    EQ(f.c.r[15], 0x1004);
     const unsigned op[] = {2, 3, 4, 7};
     const uint32_t expected[] = {0, 0, UINT32_MAX, 0x80000001};
     for (unsigned i = 0; i < 4; ++i) {
