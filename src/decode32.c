@@ -168,7 +168,8 @@ static bool dual(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
     if ((h & 0xffe0u) == 0xe840u) { /* STREX / LDREX word */
         bool load = (h & 16u) != 0;
         unsigned d = t2;
-        if (n == 15 || t >= 13 || (load ? d != 15 : d >= 13 || d == n || d == t))
+        if (n == 15 || (t == 13 || t == 15) ||
+            (load ? d != 15 : (d == 13 || d == 15) || d == n || d == t))
             return undef(c);
         addr = base + (l & 255u) * 4u;
         if (!aligned(c, addr, 4))
@@ -194,7 +195,7 @@ static bool dual(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
             if (!last_it(c))
                 return usage(c);
             unsigned m = l & 15u;
-            if (m >= 13)
+            if ((m == 13 || m == 15))
                 return undef(c);
             /* Table branch uses unaligned PC, unlike literals. */
             addr = reg(c, n, pc) + (c->r[m] << op);
@@ -202,10 +203,10 @@ static bool dual(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
                 return false;
             return branch(c, pc + 4u + 2u * v, false);
         }
-        if ((op != 4 && op != 5) || t2 != 15 || n == 15 || t >= 13)
+        if ((op != 4 && op != 5) || t2 != 15 || n == 15 || (t == 13 || t == 15))
             return undef(c);
         unsigned size = op == 4 ? 1 : 2, d = l & 15u;
-        if (load ? d != 15 : d >= 13 || d == n || d == t)
+        if (load ? d != 15 : (d == 13 || d == 15) || d == n || d == t)
             return undef(c);
         addr = base;
         if (!aligned(c, addr, size))
@@ -225,8 +226,8 @@ static bool dual(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
         return true;
     }
     bool pre = (h & 256u) != 0, up = (h & 128u) != 0, wb = (h & 32u) != 0, load = (h & 16u) != 0;
-    if ((!pre && !wb) || t >= 13 || t2 >= 13 || t == t2 || (n == 15 && (!load || wb)) ||
-        (wb && (n == t || n == t2)))
+    if ((!pre && !wb) || (t == 13 || t == 15) || (t2 == 13 || t2 == 15) || t == t2 ||
+        (n == 15 && (!load || wb)) || (wb && (n == t || n == t2)))
         return undef(c);
     uint32_t offset = (l & 255u) * 4u, next = up ? base + offset : base - offset;
     addr = pre ? next : base;
@@ -268,7 +269,7 @@ static bool single(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
         if (l & 0xfc0u)
             return undef(c);
         unsigned m = l & 15u;
-        if (m >= 13)
+        if ((m == 13 || m == 15))
             return undef(c);
         addr = base + (c->r[m] << (l >> 4 & 3u));
     } else {
