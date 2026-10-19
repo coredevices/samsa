@@ -13,8 +13,9 @@ oracle limitations are listed in `vectors/disputes.md`, not silently skipped.
 The factory names and counts in `vectors/architecture.json` provide the mapping
 from table forms to executed oracle cases. `vectors/sequences.bin` adds 10,000
 multi-instruction cases across 20 families, including changing IT conditions,
-carry chains and APSR/Q interactions. Both corpora also run with warm caches
-when caching is enabled.
+carry chains and APSR/Q interactions. `vectors/dsp.bin` adds 20,000 Cortex-M4
+records across 93 DSP families, also comparing GE. All corpora also run with
+warm caches when caching is enabled.
 
 ## A5.2: Thumb-16
 
@@ -75,7 +76,7 @@ when caching is enabled.
 | A5-12 SBFX/UBFX/BFI/BFC | I D | test_thumb32 data_processing |
 | A5-13 B T3 conditional | I D | test_control all conditions and negative offset |
 | A5-13 B T4; BL T1 | I D | test_thumb32 control; compiled programs |
-| A5-13 MRS APSR / MSR APSR_nzcvq | I D | test_thumb32 control |
+| A5-13 MRS APSR / MSR APSR_nzcvq, APSR_g, APSR_nzcvqg | I D | test_thumb32 control; test_embedding GE restore; dsp.bin |
 | A5-14 hints / DBG | I D | test_control system_ops; test_aliases DBG |
 | A5-15 CLREX/DMB/DSB/ISB | I D | test_thumb32 exclusive; test_control system_ops |
 | A5-16 STMIA/LDMIA T2 | I D | test_thumb32 memory |
@@ -106,7 +107,17 @@ when caching is enabled.
 | A5-28 MUL/MLA/MLS | I D | test_thumb32 multiply_divide |
 | A5-29 SMULL/UMULL/SMLAL/UMLAL | I D | test_thumb32 multiply_divide; libgcc |
 | A5-29 SDIV/UDIV | I D | test_thumb32 zero divisor, signed overflow; compiled programs |
-| A5-25/26/27/28/29 DSP extension entries | rejected D | test_decode_guards, 78 assembled DSP representatives |
+| A5-12 SSAT16/USAT16 | I D | test_dsp packing; dsp.bin |
+| A5-22 PKHBT/PKHTB | I D | test_dsp packing; dsp.bin |
+| A5-24 SXTAH/UXTAH/SXTAB/UXTAB, SXT(A)B16/UXT(A)B16 | I D | test_thumb32 memory; test_dsp packing; dsp.bin |
+| A5-25 signed parallel add/subtract (S, Q, SH) | I D | test_dsp parallel; dsp.bin |
+| A5-26 unsigned parallel add/subtract (U, UQ, UH) | I D | test_dsp parallel; dsp.bin |
+| A5-27 QADD/QSUB/QDADD/QDSUB, SEL | I D | test_dsp saturating, parallel; dsp.bin |
+| A5-28 SMLA<x><y>/SMUL<x><y>, SMLAD/SMUAD, SMLSD/SMUSD, SMLAW/SMULW | I D | test_thumb32 memory; test_dsp multiplies; dsp.bin |
+| A5-28 SMMLA/SMMUL/SMMLS (R), USAD8/USADA8 | I D | test_dsp multiplies; dsp.bin |
+| A5-29 SMLAL<x><y>, SMLALD/SMLSLD (X), UMAAL | I D | test_dsp long_multiplies; dsp.bin |
+| A5-25..29 DSP reserved op/op2 values | rejected D | test_dsp; dsp.bin dsp.reserved |
+| All DSP mnemonics as assembled by GNU as | I D | test_decode_guards, 92 assembled representatives |
 | A5-30 coprocessor, A6 floating point | rejected D | test_decode_guards, all first-halfword allocations |
 
 ## Explicit architectural hazards
@@ -121,6 +132,7 @@ when caching is enabled.
 - [x] Ordinary unaligned scalar access; multiple/dual/stack misalignment faults.
 - [x] Divide by zero and INT_MIN/-1.
 - [x] Q flag saturation; APSR read/write and unsupported selector.
+- [x] DSP GE per lane, SEL, saturating/halving lanes, Q only on final overflow.
 - [x] Local monitor success, failed second STREX, CLREX, byte/halfword width.
 - [x] Nested callbacks with >=3 levels and outer register/flag restoration.
 - [x] Every in-scope encoding family mapped to directed/oracle tests; representative invalid-register and reserved-bit guards.

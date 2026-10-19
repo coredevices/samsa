@@ -6,8 +6,9 @@
 | --- | --- |
 | 1: skeleton | Budget loop, memory, public API, CMake and initial tests pass |
 | 2: Thumb-16 | A5 family checklist, directed pitfalls and full-state vectors pass |
-| 3: Thumb-32 | Integer families, aliases, reserved/DSP/coprocessor guards pass |
+| 3: Thumb-32 | Integer families, aliases, reserved/coprocessor guards pass |
 | 4: oracle | 100,000 Unicorn ALU vectors and 100,000 full-state cases across 301 families, plus 10,000 mixed sequences; four documented manual hint forms |
+| DSP extension | All ARMv7E-M DSP instructions and APSR.GE implemented; directed tests per family; 20,000 Cortex-M4 full-state cases across 93 families with one documented SMLAD Q override; a 300,000-case alternate-seed corpus also replayed cleanly |
 | 5: embedding | Hooks, stops, bus, AAPCS slots, bounded calls, four callback levels, compiled libgcc soft float pass |
 | 6: portability | Local Linux GCC/Clang and macOS GCC/Clang pass; host sanitizers, ARM cross-compiles and size checks pass |
 | 7: performance | Optional predecode/region cache, guest-store coherence and host invalidation; before/after benchmarks recorded |
@@ -30,8 +31,8 @@ see the vector metadata and disputes file. No remote CI run or physical hardware
 execution is claimed. CI is configured and will run when the repository is
 published; publishing has not been requested.
 
-With ARM GCC 15.2.1 at `-Os`, object text totals are 7,042 bytes without a
-cache and 7,476 bytes with 64 entries for Cortex-M4 Thumb. ARM7TDMI ARM totals
-are 10,552 and 11,184 bytes respectively. These are core object totals, excluding
+With ARM GCC 15.2.1 at `-Os`, object text totals are 8,878 bytes without a
+cache and 9,312 bytes with 64 entries for Cortex-M4 Thumb, including the DSP
+extension. ARM7TDMI ARM totals are 12,994 and 13,626 bytes respectively. These are core object totals, excluding
 embedder libc/libgcc routines and final linker overhead. No writable global
 storage is emitted. The 16 KiB target is enforced by the portability script.

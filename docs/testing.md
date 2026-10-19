@@ -35,6 +35,7 @@ python3 -m venv .venv  # Python >= 3.10
 .venv/bin/python tools/gen_vectors.py --producer spec # independent integer model
 .venv/bin/python tools/gen_arch_vectors.py            # full-state family cases
 .venv/bin/python tools/gen_arch_vectors.py --suite sequences # 10,000 mixed sequences
+.venv/bin/python tools/gen_arch_vectors.py --suite dsp       # 20,000 Cortex-M4 DSP cases
 ruff check tools
 ruff format --check tools
 ```
@@ -65,6 +66,14 @@ one-instruction budgets. An additional 10,000 oracle sequences cover flag/carry
 dependencies, mixed widths, all IT masks with changing flags, memory, MRS/MSR,
 and sticky Q. Cached builds also replay both corpora with warm instruction caches.
 There are no manual overrides in the sequence corpus.
+
+The DSP suite runs on Unicorn's Cortex-M4 model; the other suites keep the
+Cortex-M3 model. Its 20,000 cases cover 93 families: every DSP instruction, the
+APSR_g MSR masks, and reserved DSP encodings. The replay compares GE as well as
+NZCVQ. Unicorn 2.1.4 sets Q for SMLAD when only the intermediate product sum
+overflows; that exact input keeps the pseudocode's Q and is counted in
+`dsp.json` (one case in the checked-in corpus; see the disputes file). A
+300,000-case alternate-seed DSP corpus also replayed without disagreement.
 
 Generate larger or alternate-seed corpora without changing checked-in fixtures:
 

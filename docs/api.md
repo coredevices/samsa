@@ -39,7 +39,7 @@ registers. There is no instruction rollback or exception entry. Treat a fault as
 terminal unless the embedder deliberately repairs the state. `fault_pc` records
 the most recently attempted instruction and is meaningful for fault stops.
 
-`get_xpsr`/`set_xpsr` handle NZCVQ and split ITSTATE fields. T is always reported
+`get_xpsr`/`set_xpsr` handle NZCVQ, GE[3:0] (bits 19:16) and split ITSTATE fields. T is always reported
 set. `samsa_status` returns the current stop, including a helper memory fault.
 Other `_` fields are internal and must not be modified by embedders.
 

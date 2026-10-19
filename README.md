@@ -8,9 +8,10 @@ an unfamiliar CPU.
 
 Samsa supplies execution, memory permissions, hooks, and host/guest calls.
 The embedder supplies the bytes, memory map, stack, and host functions.
-There is no loader, allocator, OS, exception controller, FPU, ARM/A32, or DSP
-extension beyond SXTAB/SXTAH/UXTAB/UXTAH and SMLA<x><y>/SMUL<x><y>. The core uses only the four permitted standard headers and has
-no global state. Each CPU is independent.
+The ARMv7E-M DSP extension is implemented, since Cortex-M4 builds of real
+apps use it. There is no loader, allocator, OS, exception controller, FPU, or
+ARM/A32. The core uses only the four permitted standard headers and has no
+global state. Each CPU is independent.
 
 ## Build
 
@@ -51,11 +52,13 @@ The integer instruction families are implemented and tested with hand-written
 cases, native-versus-guest C programs (including libgcc soft float and four
 nested callbacks), 100,000 Unicorn ALU vectors, 100,000 independent model vectors,
 and 100,000 full-state cases across 301 named encoding families, plus 10,000
-mixed instruction sequences. Four YIELD/WFE
-forms use explicit manual-derived expectations because Unicorn rejects them;
-the metadata counts these separately. The full-state replay compares every
-register and mapped byte, both continuously and across instruction budgets.
-Reserved encodings, excluded DSP/FPU classes, and unsupported system-register
+mixed instruction sequences. The DSP extension adds hand-checked tests for every
+family and 20,000 full-state Cortex-M4 cases across 93 DSP families, including
+GE and Q. Four YIELD/WFE forms use explicit manual-derived expectations because
+Unicorn rejects them, and one SMLAD case keeps the pseudocode's Q where Unicorn
+differs; the metadata counts these separately. The full-state replay compares
+every register and mapped byte, both continuously and across instruction budgets.
+Reserved encodings, FPU/coprocessor classes, and unsupported system-register
 selectors have directed rejection tests.
 
 Local tests pass with GCC and Clang on macOS and Linux, including ASan/UBSan.

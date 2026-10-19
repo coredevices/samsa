@@ -2,12 +2,12 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 # Architectural behavior
 
-The target is ARMv7-M Thumb, Cortex-M3 default settings, little-endian guest and
-host. Compilation fails on an unknown or big-endian host byte order. No ARM/A32,
-VFP, ARMv7E-M DSP, exception/NVIC/MPU, privileged registers, or binary format is
-implemented, except the DSP extend-and-add forms SXTAB, SXTAH, UXTAB and UXTAH and the
-halfword multiplies SMLA<x><y> and SMUL<x><y>, which Cortex-M4 builds of real
-apps emit. Unknown encodings stop with UNDEF. Many UNPREDICTABLE combinations
+The target is ARMv7-M Thumb with the ARMv7E-M DSP extension (the Cortex-M4
+integer instruction set), little-endian guest and host. Compilation fails on an
+unknown or big-endian host byte order. No ARM/A32, VFP, exception/NVIC/MPU,
+privileged registers, or binary format is implemented. The DSP extension is
+included because Cortex-M4 builds of real apps emit it. Unknown encodings stop
+with UNDEF. Many UNPREDICTABLE combinations
 also stop with UNDEF; this is a deterministic policy, not a promise to reproduce
 hardware's behavior on UNPREDICTABLE inputs. The coverage checklist maps encoding
 families and representative reserved-bit guards to their tests.
@@ -33,9 +33,17 @@ families and representative reserved-bit guards to their tests.
   against the last IT slot when executed.
 * NOP/YIELD/WFE/WFI/SEV/DBG and DMB/DSB/ISB have no side effects. There are no host
   memory-ordering guarantees. PLD/PLI do not touch memory or fault.
-* MRS supports APSR only (SYSm zero); MSR supports APSR_nzcvq only (mask `10`,
-  SYSm zero). NZCVQ are the only modeled APSR flags. Other selectors and CPS
-  stop with UNDEF. Q is sticky for SSAT/USAT and writable through MSR/accessors.
+* MRS supports APSR only (SYSm zero); MSR supports APSR_nzcvq, APSR_g and
+  APSR_nzcvqg (masks `10`, `01`, `11`, SYSm zero). NZCVQ and GE[3:0] are the
+  modeled APSR flags. Other selectors, mask `00`, and CPS stop with UNDEF. Q is
+  sticky and writable through MSR/accessors.
+* DSP instructions follow the A7 pseudocode. The plain parallel add/subtract
+  forms (S/U prefixes) set GE per lane; the saturating and halving forms leave
+  GE and Q alone; SEL reads GE. QADD/QSUB/QDADD/QDSUB, SSAT16/USAT16, and
+  SMLA<x><y>, SMLAW<y>, SMLAD/SMUAD and SMLSD set Q only when the pseudocode's
+  final result overflows (for SMLAD, not when only the product sum does).
+  SP/PC operands, RdLo == RdHi, SMMLS without Ra, and reserved op/op2 values
+  stop with UNDEF.
 * LDREX/B/H remember an exact address and access width. STREX/B/H succeed only
   for that address and width, and clear the monitor whether they succeed or
   fail. CLREX clears it. Ordinary stores do not clear the monitor. There is no
