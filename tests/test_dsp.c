@@ -145,9 +145,68 @@ static void packing(void) {
     rejected(0xfa2d, 0xf092);
     rejected(0xfa61, 0xf082); /* op1 011x extends */
 }
+static void multiplies(void) {
+    // clang-format off
+    static const Case cases[] = {
+        /* r0 = r1 x r2 (+ r3); X swaps r2's halves. */
+        {"smlad", 0xfb21, 0x3002, {0, 0x00030002, 0x00050004, 10}, 0,
+         {33, 0x00030002, 0x00050004, 10}, T},
+        {"smladx", 0xfb21, 0x3012, {0, 0x00030002, 0x00050004, 10}, 0,
+         {32, 0x00030002, 0x00050004, 10}, T},
+        {"smlad Q", 0xfb21, 0x3002, {0, 0x00010001, 0x00010001, 0x7fffffff}, 0,
+         {0x80000001, 0x00010001, 0x00010001, 0x7fffffff}, T | QF},
+        {"smuad Q", 0xfb21, 0xf002, {0, 0x80008000, 0x80008000, 0}, 0,
+         {0x80000000, 0x80008000, 0x80008000, 0}, T | QF},
+        {"smuadx", 0xfb21, 0xf012, {0, 0xffff0002, 0x00030004, 0}, 0xf0000000 | GE(3),
+         {2, 0xffff0002, 0x00030004, 0}, 0xf0000000 | T | GE(3)},
+        {"smlsd", 0xfb41, 0x3002, {0, 0x00030002, 0x00050004, 10}, 0,
+         {3, 0x00030002, 0x00050004, 10}, T},
+        {"smlsdx", 0xfb41, 0x3012, {0, 0x00030002, 0x00050004, 10}, 0,
+         {8, 0x00030002, 0x00050004, 10}, T},
+        {"smlsd Q", 0xfb41, 0x3002, {0, 0x7fff8000, 0x80008000, 0x10000}, 0,
+         {0x80008000, 0x7fff8000, 0x80008000, 0x10000}, T | QF},
+        {"smusd", 0xfb41, 0xf002, {0, 0x80000001, 0x7fff0001, 0}, 0,
+         {0x3fff8001, 0x80000001, 0x7fff0001, 0}, T},
+        {"smusdx", 0xfb41, 0xf012, {0, 0x00030002, 0x00050004, 0}, 0,
+         {0xfffffffe, 0x00030002, 0x00050004, 0}, T},
+        /* Word by halfword, keeping bits 47:16. */
+        {"smlawb", 0xfb31, 0x3002, {0, 0x00010000, 0x0000ffff, 5}, 0,
+         {4, 0x00010000, 0x0000ffff, 5}, T},
+        {"smlawt Q", 0xfb31, 0x3012, {0, 0x80000000, 0x80000000, 0x7fffffff}, 0,
+         {0xbfffffff, 0x80000000, 0x80000000, 0x7fffffff}, T | QF},
+        {"smulwb", 0xfb31, 0xf002, {0, 0xffff0000, 3, 0}, 0,
+         {0xfffffffd, 0xffff0000, 3, 0}, T},
+        {"smulwt", 0xfb31, 0xf012, {0, 0x12345678, 0x00020000, 0}, 0,
+         {0x2468, 0x12345678, 0x00020000, 0}, T},
+        /* Most significant word, R rounds. */
+        {"smmul", 0xfb51, 0xf002, {0, 0x40000000, 6, 0}, 0, {1, 0x40000000, 6, 0}, T},
+        {"smmulr", 0xfb51, 0xf012, {0, 0x40000000, 6, 0}, 0, {2, 0x40000000, 6, 0}, T},
+        {"smmul -1", 0xfb51, 0xf002, {0, 0xffffffff, 1, 0}, 0,
+         {0xffffffff, 0xffffffff, 1, 0}, T},
+        {"smmulr -1", 0xfb51, 0xf012, {0, 0xffffffff, 1, 0}, 0, {0, 0xffffffff, 1, 0}, T},
+        {"smmla", 0xfb51, 0x3002, {0, 0x40000000, 6, 10}, 0, {11, 0x40000000, 6, 10}, T},
+        {"smmlar", 0xfb51, 0x3012, {0, 0x40000000, 6, 10}, 0, {12, 0x40000000, 6, 10}, T},
+        {"smmls", 0xfb61, 0x3002, {0, 0x40000000, 6, 10}, 0, {8, 0x40000000, 6, 10}, T},
+        {"smmlsr", 0xfb61, 0x3012, {0, 0x40000000, 6, 10}, 0, {9, 0x40000000, 6, 10}, T},
+        /* Sum of absolute byte differences, wrapping with the accumulator. */
+        {"usad8", 0xfb71, 0xf002, {0, 0x01ff1080, 0xff00207f, 0}, 0,
+         {526, 0x01ff1080, 0xff00207f, 0}, T},
+        {"usada8", 0xfb71, 0x3002, {0, 0x01ff1080, 0xff00207f, 0xfffffff0}, 0,
+         {0x1fe, 0x01ff1080, 0xff00207f, 0xfffffff0}, T},
+    };
+    // clang-format on
+    CHECK_CASES(cases);
+    rejected(0xfb21, 0x3022); /* op2 1x */
+    rejected(0xfb21, 0x30c2); /* bits 7:6 */
+    rejected(0xfb71, 0xf012); /* USAD8 with bit 4 */
+    rejected(0xfb61, 0xf002); /* SMMLS without Ra */
+    rejected(0xfb21, 0xd002);
+    rejected(0xfb5d, 0xf002);
+}
 int main(void) {
     parallel();
     saturating();
     packing();
+    multiplies();
     return 0;
 }

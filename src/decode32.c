@@ -2,6 +2,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 #include "alu.h"
 static int64_t sint(uint32_t v) { return (int64_t)(v & 0x7fffffffu) - (int64_t)(v & 0x80000000u); }
+static int64_t half(uint32_t v) { return (int64_t)(v & 0x7fffu) - (int64_t)(v & 0x8000u); }
 static int64_t clamp(int64_t v, int64_t lo, int64_t hi, bool *saturated) {
     if (v < lo || v > hi)
         *saturated = true;
@@ -462,6 +463,49 @@ static bool multiply(SamsaCpu *c, uint16_t h, uint16_t l) {
         return true;
     }
     unsigned op = h >> 4 & 7u;
+    if ((h & 0xff80u) == 0xfb00u) {
+        /* ARMv7E-M dual, word and most-significant-word multiplies, and
+           USAD(A)8. Ra == 15 selects the forms without an accumulator. */
+        bool x = (l & 16u) != 0;
+        if ((l & 0xe0u) || a == 13 || (op == 6 && a == 15) || (op == 7 && x))
+            return undef(c);
+        uint32_t rn = c->r[n], rm = c->r[m], acc = a == 15 ? 0 : c->r[a];
+        int64_t v;
+        uint64_t r;
+        switch (op) {
+        case 2: /* SMLAD/SMUAD, X swaps Rm's halves */
+        case 4: /* SMLSD/SMUSD */
+            if (x)
+                rm = rm >> 16 | rm << 16;
+            v = half(rn) * half(rm) + (op == 2 ? 1 : -1) * half(rn >> 16) * half(rm >> 16);
+            v += sint(acc);
+            if (v != sint((uint32_t)v))
+                c->_flags |= Q;
+            put(c, d, (uint32_t)v);
+            return true;
+        case 3: /* SMLAW<y>/SMULW<y> keep bits 47:16 */
+            v = sint(rn) * half(x ? rm >> 16 : rm) + sint(acc) * 65536;
+            if (v < -(INT64_C(1) << 47) || v >= INT64_C(1) << 47)
+                c->_flags |= Q;
+            put(c, d, (uint32_t)((uint64_t)v >> 16));
+            return true;
+        case 5: /* SMMLA/SMMUL, SMMLS; X rounds */
+        case 6:
+            r = (uint64_t)(sint(rn) * sint(rm));
+            r = ((uint64_t)acc << 32) + (op == 5 ? r : 0u - r) + (x ? 0x80000000u : 0);
+            put(c, d, (uint32_t)(r >> 32));
+            return true;
+        case 7: /* USADA8/USAD8 */
+            for (unsigned i = 0; i < 32; i += 8) {
+                uint32_t p = rn >> i & 255u, q = rm >> i & 255u;
+                acc += p > q ? p - q : q - p;
+            }
+            put(c, d, acc);
+            return true;
+        default:
+            return undef(c);
+        }
+    }
     if ((h & 0xffd0u) == 0xfb90u && (l & 0xf0f0u) == 0xf0f0u) {
         uint32_t x = c->r[n], y = c->r[m], v = 0;
         if (y) {

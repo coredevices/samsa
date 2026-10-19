@@ -21,32 +21,7 @@ def instructions():
     # SMLA<x><y> and SMUL<x><y> are implemented: Cortex-M4 app builds use them.
     for suffix in ["bb", "bt", "tb", "tt"]:
         add("smlal" + suffix, "r0, r3, r1, r2")
-    for name in [
-        "smlad",
-        "smladx",
-        "smlsd",
-        "smlsdx",
-        "smlawb",
-        "smlawt",
-        "smmla",
-        "smmlar",
-        "smmls",
-        "smmlsr",
-        "usada8",
-    ]:
-        add(name, "r0, r1, r2, r3")
-    for name in [
-        "smuad",
-        "smuadx",
-        "smusd",
-        "smusdx",
-        "smulwb",
-        "smulwt",
-        "smmul",
-        "smmulr",
-        "usad8",
-    ]:
-        add(name)
+    # The dual, word and most-significant-word multiplies and USAD(A)8 are implemented.
     for name in ["smlald", "smlaldx", "smlsld", "smlsldx", "umaal"]:
         add(name, "r0, r3, r1, r2")
     return result
