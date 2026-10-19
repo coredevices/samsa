@@ -226,7 +226,7 @@ static bool dual(SamsaCpu *c, uint16_t h, uint16_t l, uint32_t pc) {
         return true;
     }
     bool pre = (h & 256u) != 0, up = (h & 128u) != 0, wb = (h & 32u) != 0, load = (h & 16u) != 0;
-    if ((!pre && !wb) || (t == 13 || t == 15) || (t2 == 13 || t2 == 15) || t == t2 ||
+    if ((!pre && !wb) || (t == 13 || t == 15) || (t2 == 13 || t2 == 15) || (load && t == t2) ||
         (n == 15 && (!load || wb)) || (wb && (n == t || n == t2)))
         return undef(c);
     uint32_t offset = (l & 255u) * 4u, next = up ? base + offset : base - offset;

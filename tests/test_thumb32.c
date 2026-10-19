@@ -161,6 +161,15 @@ static void memory(void) {
     EQ(f.c.r[2], 123);
     EQ(f.c.r[3], 456);
     EQ(f.c.r[1], 0x1110);
+    /* STRD may store one register twice; LDRD may not load one twice. */
+    init(&f);
+    CODE(&f, 0xe9c7, 0x3302, 0xe9d7, 0x3302);
+    f.c.r[7] = 0x1100;
+    f.c.r[3] = 0x80000000;
+    EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_BUDGET);
+    EQ(word(&f, 0x108), 0x80000000);
+    EQ(word(&f, 0x10c), 0x80000000);
+    EQ(samsa_run(&f.c, 1, NULL), SAMSA_STOP_UNDEF);
     init(&f);
     CODE(&f, 0xe9d1, 0x0200);
     f.c.r[1] = 0x1101;
